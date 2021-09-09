@@ -1,0 +1,18 @@
+{
+  "name": "Plugin",
+  "id": "",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "index.html",
+  "editorType": ["figma"],
+  "menu": [
+    {
+      "name": "Create Slot",
+      "command": "createSlot"
+    },
+    {
+      "name": "Edit Slot",
+      "command": "editSlot"
+    }
+  ]
+}

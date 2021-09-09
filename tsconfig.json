@@ -1,0 +1,17 @@
+{
+"include": ["figma/code.ts"],
+"exclude": [
+    "src/app"
+  ],
+
+  "compilerOptions": {
+        "target": "es2017",
+        "typeRoots": [
+            "./node_modules/@types",
+            "./node_modules/@figma"
+        ],
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true
+    }
+}
