@@ -48,6 +48,8 @@ function getNodeIndex(node: SceneNode): number {
 function makeComponent(node) {
 	const component = figma.createComponent()
 
+	component.setRelaunchData({ 'editSlot': 'Edit the selected slots' })
+
 	var origNode = node
 
 	if (node.type === "INSTANCE") {
@@ -86,9 +88,13 @@ function makeComponent(node) {
 	return component
 }
 
+var selectionSet = false
+
 function editSlot(node) {
 
 	if (node.name.endsWith('<slot>')) {
+
+		var nodeOpacity = node.opacity
 		const handle = figma.notify("Editing slot", {timeout: 999999999})
 
 
@@ -96,24 +102,44 @@ function editSlot(node) {
 		// var component = sel.mainComponent
 
 		var component = makeComponent(node)
-		node.opacity = 0
+
 
 		// figma.viewport.scrollAndZoomIntoView(component)
+
+		if (selectionSet === false) {
+			console.log("Selection set")
+			figma.currentPage.selection = [component]
+			selectionSet = true
+		}
 
 		figma.currentPage.appendChild(component)
 
 
+
+
+
 		setInterval(() => {
+
 			// Set position on document
 			var relativePosition = getRelativePosition(node)
 			component.x = getTopLevelParent(node).x + relativePosition.x
 			component.y = getTopLevelParent(node).y + relativePosition.y
 		}, 100)
 
+		// To avoid blinking when going to edit
+		setTimeout(() => {
+			node.opacity = 0
+		}, 100)
+
+		console.log(selectionSet)
+
+
+
+
 
 		figma.on('close', () => {
 			handle.cancel()
-			node.opacity = 1
+			node.opacity = nodeOpacity
 			component.remove()
 		})
 	}
@@ -145,6 +171,8 @@ plugma((plugin) => {
 		sel.name = sel.name + " <slot>"
 
 		var component = makeComponent(sel)
+
+
 
 		console.log(component)
 

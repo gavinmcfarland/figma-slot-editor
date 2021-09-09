@@ -385,6 +385,7 @@ function getNodeIndex(node) {
 }
 function makeComponent(node) {
     const component = figma.createComponent();
+    component.setRelaunchData({ 'editSlot': 'Edit the selected slots' });
     var origNode = node;
     if (node.type === "INSTANCE") {
         node = node.clone().detachInstance();
@@ -406,13 +407,19 @@ function makeComponent(node) {
     node.remove();
     return component;
 }
+var selectionSet = false;
 function editSlot(node) {
     if (node.name.endsWith('<slot>')) {
+        var nodeOpacity = node.opacity;
         const handle = figma.notify("Editing slot", { timeout: 999999999 });
         // var component = sel.mainComponent
         var component = makeComponent(node);
-        node.opacity = 0;
         // figma.viewport.scrollAndZoomIntoView(component)
+        if (selectionSet === false) {
+            console.log("Selection set");
+            figma.currentPage.selection = [component];
+            selectionSet = true;
+        }
         figma.currentPage.appendChild(component);
         setInterval(() => {
             // Set position on document
@@ -420,9 +427,14 @@ function editSlot(node) {
             component.x = getTopLevelParent(node).x + relativePosition.x;
             component.y = getTopLevelParent(node).y + relativePosition.y;
         }, 100);
+        // To avoid blinking when going to edit
+        setTimeout(() => {
+            node.opacity = 0;
+        }, 100);
+        console.log(selectionSet);
         figma.on('close', () => {
             handle.cancel();
-            node.opacity = 1;
+            node.opacity = nodeOpacity;
             component.remove();
         });
     }

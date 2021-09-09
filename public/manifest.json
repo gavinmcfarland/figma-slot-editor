@@ -1,6 +1,6 @@
 {
   "name": "Plugin",
-  "id": "",
+  "id": "1017768834174399811",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "index.html",
@@ -14,5 +14,8 @@
       "name": "Edit Slot",
       "command": "editSlot"
     }
-  ]
+  ],
+  "relaunchButtons": [
+      {"command": "editSlot", "name": "Edit Slot"}
+    ]
 }
