@@ -7,8 +7,8 @@
   "editorType": ["figma"],
   "menu": [
     {
-      "name": "Create Slot",
-      "command": "createSlot"
+      "name": "Make Slot",
+      "command": "makeSlot"
     },
     {
       "name": "Edit Slot",

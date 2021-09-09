@@ -29,3 +29,16 @@ npm run build
 1. Go to Plugins
 2. Provide [icon, thumbnail](https://www.figma.com/file/5VPkZA3tBNcOtC2EKHj1L7/Plugin-Artwork?node-id=0%3A1) and description 
 3. Publish
+
+
+## Ideas
+
+Edit original
+
+Some way of editing the original
+
+Edit unique
+
+Making the edit unique
+
+Possible to design plugin so that it's universal for editing in place and with slots and with nested components

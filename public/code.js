@@ -361,6 +361,14 @@ const getTopLevelParent = (node) => {
         return node;
     }
 };
+function getComponentParent(node) {
+    if (node.type !== "COMPONENT") {
+        return getComponentParent(node.parent);
+    }
+    else {
+        return node;
+    }
+}
 /**
  * Calculate relative position of node based on provided parent or top level parent.
  * For example:
@@ -386,6 +394,7 @@ function getNodeIndex(node) {
 function makeComponent(node) {
     const component = figma.createComponent();
     component.setRelaunchData({ 'editSlot': 'Edit the selected slots' });
+    // Add relaunch data to top level component of slot
     var origNode = node;
     if (node.type === "INSTANCE") {
         node = node.clone().detachInstance();
@@ -403,15 +412,19 @@ function makeComponent(node) {
     else {
         var instance = component.createInstance();
         node.parent.insertChild(getNodeIndex(node), instance);
+        figma.currentPage.selection = [instance];
     }
     node.remove();
     return component;
 }
 var selectionSet = false;
+var origSelection = figma.currentPage.selection[0];
 function editSlot(node) {
     if (node.name.endsWith('<slot>')) {
         var nodeOpacity = node.opacity;
         const handle = figma.notify("Editing slot", { timeout: 999999999 });
+        var nodeLayoutAlign = node.layoutAlign;
+        var nodePrimaryAxisSizingMode = node.primaryAxisSizingMode;
         // var component = sel.mainComponent
         var component = makeComponent(node);
         // figma.viewport.scrollAndZoomIntoView(component)
@@ -426,16 +439,40 @@ function editSlot(node) {
             var relativePosition = getRelativePosition(node);
             component.x = getTopLevelParent(node).x + relativePosition.x;
             component.y = getTopLevelParent(node).y + relativePosition.y;
+            // component.resize(node.width, node.height)
+            // component.layoutAlign = nodeLayoutAlign
+            // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+        }, 100);
+        // figma.on('selectionchange', () => {
+        // 	if (figma.currentPage.selection[0]?.id === findTopInstance(origSelection)?.id) {
+        // 		console.log("Selection is top instance")
+        // 		setInterval(() => {
+        // 			component.resize(node.width, node.height)
+        // 			component.layoutAlign = nodeLayoutAlign
+        // 			component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+        // 		}, 100)
+        // 	}
+        // 	else {
+        // 		console.log("Selection is not top instance")
+        // 	}
+        // })
+        setInterval(() => {
+            component.resize(node.width, node.height);
+            component.layoutAlign = nodeLayoutAlign;
+            component.primaryAxisSizingMode = nodePrimaryAxisSizingMode;
         }, 100);
         // To avoid blinking when going to edit
         setTimeout(() => {
             node.opacity = 0;
         }, 100);
-        console.log(selectionSet);
         figma.on('close', () => {
             handle.cancel();
             node.opacity = nodeOpacity;
+            // Probably not needed now that they are applied when resized at set interval
+            // component.layoutAlign = nodeLayoutAlign
+            // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
             component.remove();
+            figma.currentPage.selection = [origSelection];
         });
     }
     else {
@@ -454,16 +491,19 @@ dist((plugin) => {
         width: 268,
         height: 504
     };
-    plugin.command('createSlot', ({ ui, data }) => {
+    plugin.command('makeSlot', ({ ui, data }) => {
         var sel = figma.currentPage.selection[0];
         sel.name = sel.name + " <slot>";
+        var parentComponent = getComponentParent(sel);
+        // console.log(parentComponent)
+        parentComponent.setRelaunchData({ 'editSlot': 'Edit slots on this instance' });
         var component = makeComponent(sel);
         console.log(component);
         component.remove();
         // Create component from selection
         // Replace selection with instance of component
         // Delete component
-        figma.closePlugin("Slot created");
+        figma.closePlugin("Slot made");
         // ui.show(
         // 	{
         // 		type: "create-table",
