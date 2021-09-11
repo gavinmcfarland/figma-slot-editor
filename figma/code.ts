@@ -1,8 +1,60 @@
 import plugma from 'plugma'
 
-import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync } from '@figlets/helpers'
+// TODO: Disable making slot when part of instance
+// TODO: Only allow making slots on frames and top level instances inside of components?
+// TODO: Detect if slot already made
+
+import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
+
+var selectionSet = false
+var origSel = figma.currentPage.selection
+var newSel = []
 
 // Move to helpers
+
+function getPluginData(node: BaseNode, key: string) {
+	var data = node.getPluginData(key)
+	if (data) return JSON.parse(data)
+}
+
+function findComponentById(id) {
+	// var pages = figma.root.children
+	// var component
+
+	// // Look through each page to see if matches node id
+	// for (let i = 0; i < pages.length; i++) {
+
+	// 	if (pages[i].findOne(node => node.id === id && node.type === "COMPONENT")) {
+	// 		component = pages[i].findOne(node => node.id === id && node.type === "COMPONENT")
+	// 	}
+
+	// }
+
+
+	// return component || false
+
+	var node = figma.getNodeById(id)
+
+
+
+	if (node) {
+		if (node.parent === null || node.parent.parent === null) {
+			// figma.root.setPluginData("cellComponentState", "exists")
+			// If component in storage then restore it
+			figma.currentPage.appendChild(node)
+			return node
+		}
+		else {
+			// figma.root.setPluginData("cellComponentState", "removed")
+			return node
+		}
+	}
+	else {
+		// figma.root.setPluginData("cellComponentState", "deleted")
+		return null
+	}
+
+}
 
 const isPageNode = (node: BaseNode): node is PageNode => {
 	return node.type === 'PAGE'
@@ -37,13 +89,13 @@ function findTopInstance(node) {
 }
 
 function getComponentParent(node) {
-	if (node.type !== "COMPONENT") {
-		return getComponentParent(node.parent)
+	if (node.type === "PAGE") return null
+	if (node?.parent?.type === "COMPONENT") {
+		return node.parent
 	}
 	else {
-		return node
+		return getComponentParent(node?.parent)
 	}
-
 }
 
 /**
@@ -75,70 +127,95 @@ function getNodeIndex(node: SceneNode): number {
 	return node.parent.children.indexOf(node)
 }
 
-function makeComponent(node) {
-	const component = figma.createComponent()
+function makeComponent(node, action = "make") {
 
-	component.setRelaunchData({ 'editSlot': 'Edit the selected slots' })
-	// Add relaunch data to top level component of slot
+	if (node.type === "INSTANCE" && action === "make") {
+		const component = node.mainComponent
 
-	var origNode = node
+		component.setRelaunchData({ 'editSlot': 'Edit the selected slots' })
 
-	if (node.type === "INSTANCE") {
-		node = node.clone().detachInstance()
+		figma.currentPage.selection = [node]
 
-	}
+		if (action === "make") {
+			newSel.push(node)
+		}
 
-	component.resizeWithoutConstraints(node.width, node.height)
+		return component
 
-	copyPaste(node, component)
-
-	// component.x = node.x + 200
-	// component.y = node.y + 200
-
-	for (const child of node.children) {
-		component.appendChild(child)
-	}
-
-
-
-
-	if (origNode.type === "INSTANCE") {
-		origNode.swapComponent(component)
 	}
 	else {
-		var instance = component.createInstance()
-		node.parent.insertChild(getNodeIndex(node), instance)
-		figma.currentPage.selection = [instance]
+
+		// Make unique
+		const component = figma.createComponent()
+
+
+
+		component.setRelaunchData({ 'editSlot': 'Edit the selected slots' })
+		setPluginData(component, "isSlot", true)
+		// Add relaunch data to top level component of slot
+
+		var origNode = node
+
+		if (node.type === "INSTANCE") {
+			node = node.clone().detachInstance()
+
+		}
+
+		component.resizeWithoutConstraints(node.width, node.height)
+
+		copyPaste(node, component)
+
+		for (const child of node.children) {
+			component.appendChild(child)
+		}
+
+
+
+
+		if (origNode.type === "INSTANCE") {
+			origNode.swapComponent(component)
+
+			if (action === "make") {
+				newSel.push(origNode)
+			}
+		}
+		else {
+			var instance = component.createInstance()
+			node.parent.insertChild(getNodeIndex(node), instance)
+			if (action === "make") {
+				newSel.push(instance)
+			}
+		}
+
+
+
+
+		node.remove()
+
+
+		return component
 	}
 
-
-
-
-	node.remove()
-
-
-
-
-	return component
 }
 
-var selectionSet = false
-var origSelection = figma.currentPage.selection[0]
+
 
 function editSlot(node) {
 
-	if (node.name.endsWith('<slot>')) {
+	console.log(getPluginData(node, "isSlot"))
+	if (getPluginData(node, "isSlot")) {
+
+		// node.name.endsWith('<slot>') && node.type === "INSTANCE"
 
 		var nodeOpacity = node.opacity
-		const handle = figma.notify("Editing slot", { timeout: 999999999 })
+		const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
 		var nodeLayoutAlign = node.layoutAlign
 		var nodePrimaryAxisSizingMode = node.primaryAxisSizingMode
 
+		// Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
+		// var component = findComponentById(node.mainComponent.id)
 
-
-		// var component = sel.mainComponent
-
-		var component = makeComponent(node)
+		var component = makeComponent(node, "edit")
 
 
 		// figma.viewport.scrollAndZoomIntoView(component)
@@ -152,19 +229,22 @@ function editSlot(node) {
 		figma.currentPage.appendChild(component)
 
 
+		function setPosition(node) {
+			var relativePosition = getRelativePosition(node)
+			component.x = getTopLevelParent(node).x + relativePosition.x
+			component.y = getTopLevelParent(node).y + relativePosition.y
+		}
 
+		setPosition(node)
 
 
 		setInterval(() => {
 
-			// Set position on document
-			var relativePosition = getRelativePosition(node)
-			component.x = getTopLevelParent(node).x + relativePosition.x
-			component.y = getTopLevelParent(node).y + relativePosition.y
+			setPosition(node)
 			// component.resize(node.width, node.height)
 			// component.layoutAlign = nodeLayoutAlign
 			// component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
-		}, 100)
+		}, 200)
 
 
 		// figma.on('selectionchange', () => {
@@ -202,7 +282,7 @@ function editSlot(node) {
 			// component.layoutAlign = nodeLayoutAlign
 			// component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
 			component.remove()
-			figma.currentPage.selection = [origSelection]
+			figma.currentPage.selection = origSel
 		})
 	}
 	else {
@@ -228,44 +308,55 @@ plugma((plugin) => {
 
 	plugin.command('makeSlot', ({ ui, data }) => {
 
-		var sel = figma.currentPage.selection[0]
-		var origSel = sel
+		var sel = figma.currentPage.selection
+		var numberSlotsMade = 0
 
-		sel.name = sel.name + " <slot>"
-
-		var parentComponent = getComponentParent(sel)
-
-		// console.log(parentComponent)
-
-		parentComponent.setRelaunchData({ 'editSlot': 'Edit slots on this instance' })
-
-		var component = makeComponent(sel)
+		for (var i = 0; i < sel.length; i++) {
+			var node = sel[i]
+			if (node.type === "FRAME" || node.type === "INSTANCE") {
+				if (getComponentParent(node)) {
+					node.name = node.name + " <slot>"
 
 
 
-		console.log(component)
+					var parentComponent = getComponentParent(node)
 
-		component.remove()
+					console.log(node)
 
+					parentComponent.setRelaunchData({ 'editSlot': 'Edit slots on this instance' })
 
-		// Create component from selection
-		// Replace selection with instance of component
-		// Delete component
+					var component = makeComponent(node)
 
-		figma.closePlugin("Slot made")
+					setPluginData(component, "isSlot", true)
 
-					// ui.show(
-					// 	{
-					// 		type: "create-table",
-					// 		...res,
-					// 		usingRemoteTemplate: getPluginData(figma.root, "usingRemoteTemplate"),
-					// 		defaultTemplate: getPluginData(figma.root, 'defaultTemplate'),
-					// 		remoteFiles: getPluginData(figma.root, 'remoteFiles'),
-					// 		localTemplates: getPluginData(figma.root, 'localTemplates'),
-					// 		fileId: getPluginData(figma.root, 'fileId'),
-					// 		pluginAlreadyRun: pluginAlreadyRun,
-					// 		recentFiles: recentFiles
-					// 	})
+					if (node.type !== "INSTANCE") {
+						component.remove()
+					}
+
+					numberSlotsMade += 1
+
+				}
+				else {
+					figma.notify("Slot must be inside component")
+				}
+			}
+			else {
+				figma.notify("Slot must be a frame or instance")
+			}
+
+		}
+
+		if (numberSlotsMade > 1) {
+			figma.notify("Slots made")
+			figma.currentPage.selection = newSel
+		}
+		else if (numberSlotsMade = 0) {
+			figma.notify("Slot made")
+			figma.currentPage.selection = newSel
+		}
+
+		figma.closePlugin()
+
 
 	})
 
