@@ -513,9 +513,11 @@ function editSlot(node) {
         }
         figma.currentPage.appendChild(component);
         function setPosition(node) {
-            var relativePosition = getRelativePosition(node);
-            component.x = getTopLevelParent(node).x + relativePosition.x;
-            component.y = getTopLevelParent(node).y + relativePosition.y;
+            if (figma.getNodeById(node.id)) {
+                var relativePosition = getRelativePosition(node);
+                component.x = getTopLevelParent(node).x + relativePosition.x;
+                component.y = getTopLevelParent(node).y + relativePosition.y;
+            }
         }
         setPosition(node);
         setInterval(() => {
@@ -538,22 +540,30 @@ function editSlot(node) {
         // 	}
         // })
         setInterval(() => {
-            component.resize(node.width, node.height);
-            component.layoutAlign = nodeLayoutAlign;
-            component.primaryAxisSizingMode = nodePrimaryAxisSizingMode;
+            if (figma.getNodeById(node.id)) {
+                component.resize(node.width, node.height);
+                component.layoutAlign = nodeLayoutAlign;
+                component.primaryAxisSizingMode = nodePrimaryAxisSizingMode;
+            }
         }, 100);
         // To avoid blinking when going to edit
         setTimeout(() => {
-            node.opacity = 0;
+            if (figma.getNodeById(node.id)) {
+                node.opacity = 0;
+            }
         }, 100);
         figma.on('close', () => {
             handle.cancel();
-            node.opacity = nodeOpacity;
-            // Probably not needed now that they are applied when resized at set interval
-            // component.layoutAlign = nodeLayoutAlign
-            // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+            if (figma.getNodeById(node.id)) {
+                node.opacity = nodeOpacity;
+                // Probably not needed now that they are applied when resized at set interval
+                // component.layoutAlign = nodeLayoutAlign
+                // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+            }
             component.remove();
-            figma.currentPage.selection = origSel;
+            if (figma.getNodeById(origSel[0].id)) {
+                figma.currentPage.selection = origSel;
+            }
         });
     }
     else {
@@ -577,22 +587,28 @@ dist((plugin) => {
         var numberSlotsMade = 0;
         for (var i = 0; i < sel.length; i++) {
             var node = sel[i];
-            if (node.type === "FRAME" || node.type === "INSTANCE" || node.type === "COMPONENT") {
-                node.name = node.name + " <slot>";
-                var parentComponent = getComponentParent(node);
-                parentComponent.setRelaunchData({
-                    'editSlot': 'Edit slots on this instance',
-                    'removeSlot': 'Remove slots on this instance'
-                });
-                var component = makeComponent(node);
-                setPluginData(component, "isSlot", true);
-                if (node.type !== "INSTANCE") {
-                    component.remove();
+            console.log(getPluginData(node, "isSlot"));
+            if (getPluginData(node, "isSlot") !== true) {
+                if (node.type === "FRAME" || node.type === "INSTANCE" || node.type === "COMPONENT") {
+                    node.name = node.name + " <slot>";
+                    var parentComponent = getComponentParent(node);
+                    parentComponent.setRelaunchData({
+                        'editSlot': 'Edit slots on this instance',
+                        'removeSlot': 'Remove slots on this instance'
+                    });
+                    var component = makeComponent(node);
+                    setPluginData(component, "isSlot", true);
+                    if (node.type !== "INSTANCE") {
+                        component.remove();
+                    }
+                    numberSlotsMade += 1;
                 }
-                numberSlotsMade += 1;
+                else {
+                    figma.notify("Slot must be a frame, component or instance");
+                }
             }
             else {
-                figma.notify("Slot must be a frame, component or instance");
+                figma.notify("Already a slot");
             }
         }
         console.log(numberSlotsMade);
@@ -600,7 +616,7 @@ dist((plugin) => {
             figma.currentPage.selection = newSel;
             figma.notify("Slots made");
         }
-        else if (numberSlotsMade = 1) {
+        else if (numberSlotsMade === 1) {
             figma.currentPage.selection = newSel;
             figma.notify("Slot made");
         }
