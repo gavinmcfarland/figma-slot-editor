@@ -386,6 +386,18 @@ const getTopLevelParent = (node) => {
         return node;
     }
 };
+function isPartOfComponent(node) {
+    const parent = node.parent;
+    if (parent.type === 'COMPONENT') {
+        return true;
+    }
+    else if (parent.type === 'PAGE') {
+        return false;
+    }
+    else {
+        return isPartOfComponent(parent);
+    }
+}
 function getComponentParent(node) {
     var _a;
     if (node.type === "PAGE")
@@ -473,27 +485,28 @@ function makeComponent(node, action = "make") {
         return component;
     }
 }
-function removeSlot(node, level = 0, nSlots = 0) {
-    var sel = putValuesIntoArray(node);
-    if (sel.length > 0) {
-        for (var i = 0; i < sel.length; i++) {
-            var node = sel[i];
-            if (getPluginData(node, "isSlot")) {
-                nSlots += 1;
-            }
-            setPluginData(node, "isSlot", "");
-            node.setRelaunchData({});
-            // TODO: Better if it removes from main component
-            node.name = node.name.replace(/<slot>$/, "");
-            if (level === 0) {
-                if ((node.type === "INSTANCE" || node.type === "COMPONENT") && node.children) {
-                    level += 1;
-                    return removeSlot(node.children, level, nSlots);
-                }
+var numberSlots = 0;
+function removeSlot(node, traverseChildren = true) {
+    var nodes = putValuesIntoArray(node);
+    // if (sel.length > 0) {
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        if (getPluginData(node, "isSlot")) {
+            numberSlots += 1;
+            traverseChildren = false;
+        }
+        // TODO: Better if it removes from main component
+        node.name = node.name.replace(/<slot>$/, "");
+        node.setRelaunchData({});
+        setPluginData(node, "isSlot", "");
+        if (traverseChildren) {
+            if (node.children) {
+                removeSlot(node.children);
             }
         }
     }
-    return nSlots;
+    // }
+    return numberSlots;
 }
 function editSlot(node) {
     if (getPluginData(node, "isSlot")) {
@@ -560,9 +573,13 @@ function editSlot(node) {
                 // component.layoutAlign = nodeLayoutAlign
                 // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
             }
-            component.remove();
+            if (node.type !== "COMPONENT") {
+                component.remove();
+            }
             if (figma.getNodeById(origSel[0].id)) {
-                figma.currentPage.selection = origSel;
+                if (node.type !== "COMPONENT") {
+                    figma.currentPage.selection = origSel;
+                }
             }
         });
     }
@@ -589,22 +606,26 @@ dist((plugin) => {
             var node = sel[i];
             console.log(getPluginData(node, "isSlot"));
             if (getPluginData(node, "isSlot") !== true) {
-                if (node.type === "FRAME" || node.type === "INSTANCE" || node.type === "COMPONENT") {
+                if ((node.type === "FRAME" || node.type === "INSTANCE") && (isPartOfComponent(node))) {
                     node.name = node.name + " <slot>";
                     var parentComponent = getComponentParent(node);
-                    parentComponent.setRelaunchData({
-                        'editSlot': 'Edit slots on this instance',
-                        'removeSlot': 'Remove slots on this instance'
-                    });
+                    if (parentComponent) {
+                        parentComponent.setRelaunchData({
+                            'editSlot': 'Edit slots on this instance',
+                            'removeSlot': 'Remove slots on this instance'
+                        });
+                    }
                     var component = makeComponent(node);
                     setPluginData(component, "isSlot", true);
-                    if (node.type !== "INSTANCE") {
-                        component.remove();
+                    if (parentComponent) {
+                        if (node.type !== "INSTANCE") {
+                            component.remove();
+                        }
                     }
                     numberSlotsMade += 1;
                 }
                 else {
-                    figma.notify("Slot must be a frame, component or instance");
+                    figma.notify("Slot must be a frame or instance inside a component");
                 }
             }
             else {
