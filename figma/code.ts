@@ -1,5 +1,9 @@
 import plugma from 'plugma'
 
+// FIXME: When no selection when editing DONE
+// FIXME: When no slots when editing
+// FIXME: When trying to turn something inside instances into slot
+
 // TODO: Disable making slot when part of instance NO
 // TODO: Only allow making slots on frames and top level instances inside of components? NO
 // TODO: Detect if slot already made DONE
@@ -455,9 +459,15 @@ plugma((plugin) => {
 
 	plugin.command('editSlot', ({ ui, data }) => {
 
-		var sel = figma.currentPage.selection[0]
+		var sel = figma.currentPage.selection
 
-		editSlot(sel)
+		if (sel.length > 0) {
+			editSlot(sel)
+		}
+		else if (sel.length === 0) {
+			figma.notify("Please select a slot or instance with slots")
+		}
+
 
 
 		// Create component from selection
