@@ -3,13 +3,16 @@ import plugma from 'plugma'
 // FIXME: When no selection when editing DONE
 // FIXME: When no slots when editing DONE
 // FIXME: When trying to turn something inside instances into slot NOT NEEDED
-// FIXME: Enable editing more than one instance at a time
-// FIXME: Stops editing after first go
+// FIXME: Enable editing more than one instance at a time DONE
+// FIXME: Stops editing after first go DONE
 
 // TODO: Disable making slot when part of instance NO
 // TODO: Only allow making slots on frames and top level instances inside of components? NO
 // TODO: Detect if slot already made DONE
 // TODO: Let plugin work even when instance deleted DONE
+
+// TODO: Do unit tests again
+// TODO: Check if happy with way selection works
 
 import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
 
@@ -291,22 +294,23 @@ function editSlot(node) {
 
 			let component = makeComponent(node, "edit")
 
-			console.log(component.name)
-
 
 			// figma.viewport.scrollAndZoomIntoView(component)
 
 			if (selectionSet === false) {
 				// console.log("Selection set")
-				figma.currentPage.selection = [component]
+				figma.currentPage.selection = []
 				selectionSet = true
 			}
 
-			figma.currentPage.appendChild(component)
+			if (figma.getNodeById(component.id)) {
+				figma.currentPage.appendChild(component)
+			}
+
 
 
 			function setPosition(node) {
-				if (figma.getNodeById(node.id)) {
+				if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
 					var relativePosition = getRelativePosition(node)
 					component.x = getTopLevelParent(node).x + relativePosition.x
 					component.y = getTopLevelParent(node).y + relativePosition.y
@@ -320,7 +324,7 @@ function editSlot(node) {
 			setInterval(() => {
 
 				setPosition(node)
-				if (figma.getNodeById(node.id)) {
+				if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
 					component.resize(node.width, node.height)
 					component.layoutAlign = nodeLayoutAlign
 					component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
@@ -346,10 +350,14 @@ function editSlot(node) {
 					// component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
 				}
 
-				if (node.type !== "COMPONENT") {
-					component.remove()
+				// User might undo and then components are in Figma's hidden storage
+				if (component.parent !== null) {
+					if (node.type !== "COMPONENT") {
+						component.remove()
+					}
 				}
 
+				// FIXME: needs some work. Should loop through each node in original selection to see if they still exist
 				if (figma.getNodeById(origSel[0].id)) {
 					if (node.type !== "COMPONENT") {
 						figma.currentPage.selection = origSel

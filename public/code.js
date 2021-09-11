@@ -524,16 +524,17 @@ function editSlot(node) {
             // Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
             // var component = findComponentById(node.mainComponent.id)
             let component = makeComponent(node, "edit");
-            console.log(component.name);
             // figma.viewport.scrollAndZoomIntoView(component)
             if (selectionSet === false) {
                 // console.log("Selection set")
-                figma.currentPage.selection = [component];
+                figma.currentPage.selection = [];
                 selectionSet = true;
             }
-            figma.currentPage.appendChild(component);
+            if (figma.getNodeById(component.id)) {
+                figma.currentPage.appendChild(component);
+            }
             function setPosition(node) {
-                if (figma.getNodeById(node.id)) {
+                if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
                     var relativePosition = getRelativePosition(node);
                     component.x = getTopLevelParent(node).x + relativePosition.x;
                     component.y = getTopLevelParent(node).y + relativePosition.y;
@@ -542,7 +543,7 @@ function editSlot(node) {
             setPosition(node);
             setInterval(() => {
                 setPosition(node);
-                if (figma.getNodeById(node.id)) {
+                if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
                     component.resize(node.width, node.height);
                     component.layoutAlign = nodeLayoutAlign;
                     component.primaryAxisSizingMode = nodePrimaryAxisSizingMode;
@@ -564,9 +565,13 @@ function editSlot(node) {
                     // component.layoutAlign = nodeLayoutAlign
                     // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
                 }
-                if (node.type !== "COMPONENT") {
-                    component.remove();
+                // User might undo and then components are in Figma's hidden storage
+                if (component.parent !== null) {
+                    if (node.type !== "COMPONENT") {
+                        component.remove();
+                    }
                 }
+                // FIXME: needs some work. Should loop through each node in original selection to see if they still exist
                 if (figma.getNodeById(origSel[0].id)) {
                     if (node.type !== "COMPONENT") {
                         figma.currentPage.selection = origSel;
