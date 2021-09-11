@@ -13,9 +13,14 @@
     {
       "name": "Edit Slot",
       "command": "editSlot"
+    },
+    {
+      "name": "Remove Slot",
+      "command": "removeSlot"
     }
   ],
   "relaunchButtons": [
-      {"command": "editSlot", "name": "Edit Slot"}
+      {"command": "editSlot", "name": "Edit Slot"},
+      {"command": "removeSlot", "name": "Remove Slot"}
     ]
 }

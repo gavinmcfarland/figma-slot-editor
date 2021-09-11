@@ -12,6 +12,10 @@ var newSel = []
 
 // Move to helpers
 
+function putValuesIntoArray(value) {
+	return Array.isArray(value) ? value : [value]
+}
+
 function getPluginData(node: BaseNode, key: string) {
 	var data = node.getPluginData(key)
 	if (data) return JSON.parse(data)
@@ -132,8 +136,18 @@ function makeComponent(node, action = "make") {
 	if (node.type === "INSTANCE" && action === "make") {
 		const component = node.mainComponent
 
-		component.setRelaunchData({ 'editSlot': 'Edit the selected slots' })
+		component.setRelaunchData({
+			'editSlot': 'Edit the selected slot',
+			'removeSlot': 'Remove the selected slot'
+		})
 
+		node.setRelaunchData({
+			'editSlot': 'Edit the selected slot',
+			'removeSlot': 'Remove the selected slot'
+		})
+
+		setPluginData(component, "isSlot", true)
+		setPluginData(node, "isSlot", true)
 		figma.currentPage.selection = [node]
 
 		if (action === "make") {
@@ -148,9 +162,10 @@ function makeComponent(node, action = "make") {
 		// Make unique
 		const component = figma.createComponent()
 
-
-
-		component.setRelaunchData({ 'editSlot': 'Edit the selected slots' })
+		component.setRelaunchData({
+			'editSlot': 'Edit the selected slot',
+			'removeSlot': 'Remove the selected slot'
+		})
 		setPluginData(component, "isSlot", true)
 		// Add relaunch data to top level component of slot
 
@@ -196,6 +211,40 @@ function makeComponent(node, action = "make") {
 		return component
 	}
 
+}
+
+function removeSlot(node, level = 0, nSlots = 0) {
+	var sel = putValuesIntoArray(node)
+
+	if (sel.length > 0) {
+		for (var i = 0; i < sel.length; i++) {
+
+			var node = sel[i]
+
+			if (getPluginData(node, "isSlot")) {
+				nSlots += 1
+			}
+
+			setPluginData(node, "isSlot", "")
+
+			node.setRelaunchData({})
+
+
+			// TODO: Better if it removes from main component
+
+			node.name = node.name.replace(/<slot>$/, "")
+
+			if (level === 0) {
+				if ((node.type === "INSTANCE" || node.type === "COMPONENT") && node.children) {
+
+					level += 1
+					return removeSlot(node.children, level, nSlots)
+				}
+			}
+		}
+	}
+
+	return nSlots
 }
 
 
@@ -313,17 +362,18 @@ plugma((plugin) => {
 
 		for (var i = 0; i < sel.length; i++) {
 			var node = sel[i]
-			if (node.type === "FRAME" || node.type === "INSTANCE") {
-				if (getComponentParent(node)) {
+			if (node.type === "FRAME" || node.type === "INSTANCE" || node.type === "COMPONENT") {
 					node.name = node.name + " <slot>"
 
 
 
 					var parentComponent = getComponentParent(node)
 
-					console.log(node)
+				parentComponent.setRelaunchData({
+					'editSlot': 'Edit slots on this instance',
+					'removeSlot': 'Remove slots on this instance'
+				})
 
-					parentComponent.setRelaunchData({ 'editSlot': 'Edit slots on this instance' })
 
 					var component = makeComponent(node)
 
@@ -334,25 +384,24 @@ plugma((plugin) => {
 					}
 
 					numberSlotsMade += 1
-
-				}
-				else {
-					figma.notify("Slot must be inside component")
-				}
 			}
 			else {
-				figma.notify("Slot must be a frame or instance")
+				figma.notify("Slot must be a frame, component or instance")
 			}
 
 		}
 
+		console.log(numberSlotsMade)
+
 		if (numberSlotsMade > 1) {
+			figma.currentPage.selection = newSel
 			figma.notify("Slots made")
-			figma.currentPage.selection = newSel
+
 		}
-		else if (numberSlotsMade = 0) {
-			figma.notify("Slot made")
+		else if (numberSlotsMade = 1) {
 			figma.currentPage.selection = newSel
+			figma.notify("Slot made")
+
 		}
 
 		figma.closePlugin()
@@ -388,6 +437,23 @@ plugma((plugin) => {
 		// 		recentFiles: recentFiles
 		// 	})
 
+
+
+	})
+
+	plugin.command('removeSlot', () => {
+		var nSlotsRemoved = removeSlot(figma.currentPage.selection)
+
+		if (nSlotsRemoved > 1) {
+			figma.closePlugin(`${nSlotsRemoved} slots removed`)
+		}
+
+		else if (nSlotsRemoved === 1) {
+			figma.closePlugin(`${nSlotsRemoved} slot removed`)
+		}
+
+
+		figma.closePlugin()
 
 
 	})
