@@ -512,8 +512,9 @@ var nSlotsFound = 0;
 function editSlot(node) {
     var nodes = putValuesIntoArray(node);
     for (var i = 0; i < nodes.length; i++) {
-        var node = nodes[i];
+        let node = nodes[i];
         if (getPluginData(node, "isSlot")) {
+            // console.log(node.name)
             nSlotsFound += 1;
             // node.name.endsWith('<slot>') && node.type === "INSTANCE"
             var nodeOpacity = node.opacity;
@@ -522,10 +523,11 @@ function editSlot(node) {
             var nodePrimaryAxisSizingMode = node.primaryAxisSizingMode;
             // Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
             // var component = findComponentById(node.mainComponent.id)
-            var component = makeComponent(node, "edit");
+            let component = makeComponent(node, "edit");
+            console.log(component.name);
             // figma.viewport.scrollAndZoomIntoView(component)
             if (selectionSet === false) {
-                console.log("Selection set");
+                // console.log("Selection set")
                 figma.currentPage.selection = [component];
                 selectionSet = true;
             }
@@ -540,30 +542,15 @@ function editSlot(node) {
             setPosition(node);
             setInterval(() => {
                 setPosition(node);
-                // component.resize(node.width, node.height)
-                // component.layoutAlign = nodeLayoutAlign
-                // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
-            }, 200);
-            // figma.on('selectionchange', () => {
-            // 	if (figma.currentPage.selection[0]?.id === findTopInstance(origSelection)?.id) {
-            // 		console.log("Selection is top instance")
-            // 		setInterval(() => {
-            // 			component.resize(node.width, node.height)
-            // 			component.layoutAlign = nodeLayoutAlign
-            // 			component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
-            // 		}, 100)
-            // 	}
-            // 	else {
-            // 		console.log("Selection is not top instance")
-            // 	}
-            // })
-            setInterval(() => {
                 if (figma.getNodeById(node.id)) {
                     component.resize(node.width, node.height);
                     component.layoutAlign = nodeLayoutAlign;
                     component.primaryAxisSizingMode = nodePrimaryAxisSizingMode;
                 }
-            }, 100);
+                // component.resize(node.width, node.height)
+                // component.layoutAlign = nodeLayoutAlign
+                // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+            }, 200);
             // To avoid blinking when going to edit
             setTimeout(() => {
                 if (figma.getNodeById(node.id)) {
@@ -571,7 +558,6 @@ function editSlot(node) {
                 }
             }, 100);
             figma.on('close', () => {
-                handle.cancel();
                 if (figma.getNodeById(node.id)) {
                     node.opacity = nodeOpacity;
                     // Probably not needed now that they are applied when resized at set interval
@@ -586,15 +572,12 @@ function editSlot(node) {
                         figma.currentPage.selection = origSel;
                     }
                 }
+                handle.cancel();
             });
         }
         else {
             if (node.children) {
-                var length = node.children.length;
-                for (var i = 0; i < length; i++) {
-                    var child = node.children[i];
-                    editSlot(child);
-                }
+                editSlot(node.children);
             }
         }
     }
@@ -661,21 +644,6 @@ dist((plugin) => {
         else if (sel.length === 0) {
             figma.notify("Please select a slot or instance with slots");
         }
-        // Create component from selection
-        // Replace selection with instance of component
-        // Delete component
-        // ui.show(
-        // 	{
-        // 		type: "create-table",
-        // 		...res,
-        // 		usingRemoteTemplate: getPluginData(figma.root, "usingRemoteTemplate"),
-        // 		defaultTemplate: getPluginData(figma.root, 'defaultTemplate'),
-        // 		remoteFiles: getPluginData(figma.root, 'remoteFiles'),
-        // 		localTemplates: getPluginData(figma.root, 'localTemplates'),
-        // 		fileId: getPluginData(figma.root, 'fileId'),
-        // 		pluginAlreadyRun: pluginAlreadyRun,
-        // 		recentFiles: recentFiles
-        // 	})
     });
     plugin.command('removeSlot', () => {
         var nSlotsRemoved = removeSlot(figma.currentPage.selection);
