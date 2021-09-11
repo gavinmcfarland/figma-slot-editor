@@ -508,90 +508,97 @@ function removeSlot(node, traverseChildren = true) {
     // }
     return numberSlots;
 }
+var nSlotsFound = 0;
 function editSlot(node) {
-    if (getPluginData(node, "isSlot")) {
-        // node.name.endsWith('<slot>') && node.type === "INSTANCE"
-        var nodeOpacity = node.opacity;
-        const handle = figma.notify("Editing slots...", { timeout: 99999999999 });
-        var nodeLayoutAlign = node.layoutAlign;
-        var nodePrimaryAxisSizingMode = node.primaryAxisSizingMode;
-        // Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
-        // var component = findComponentById(node.mainComponent.id)
-        var component = makeComponent(node, "edit");
-        // figma.viewport.scrollAndZoomIntoView(component)
-        if (selectionSet === false) {
-            console.log("Selection set");
-            figma.currentPage.selection = [component];
-            selectionSet = true;
-        }
-        figma.currentPage.appendChild(component);
-        function setPosition(node) {
-            if (figma.getNodeById(node.id)) {
-                var relativePosition = getRelativePosition(node);
-                component.x = getTopLevelParent(node).x + relativePosition.x;
-                component.y = getTopLevelParent(node).y + relativePosition.y;
+    var nodes = putValuesIntoArray(node);
+    for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+        if (getPluginData(node, "isSlot")) {
+            nSlotsFound += 1;
+            // node.name.endsWith('<slot>') && node.type === "INSTANCE"
+            var nodeOpacity = node.opacity;
+            const handle = figma.notify("Editing slots...", { timeout: 99999999999 });
+            var nodeLayoutAlign = node.layoutAlign;
+            var nodePrimaryAxisSizingMode = node.primaryAxisSizingMode;
+            // Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
+            // var component = findComponentById(node.mainComponent.id)
+            var component = makeComponent(node, "edit");
+            // figma.viewport.scrollAndZoomIntoView(component)
+            if (selectionSet === false) {
+                console.log("Selection set");
+                figma.currentPage.selection = [component];
+                selectionSet = true;
             }
-        }
-        setPosition(node);
-        setInterval(() => {
-            setPosition(node);
-            // component.resize(node.width, node.height)
-            // component.layoutAlign = nodeLayoutAlign
-            // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
-        }, 200);
-        // figma.on('selectionchange', () => {
-        // 	if (figma.currentPage.selection[0]?.id === findTopInstance(origSelection)?.id) {
-        // 		console.log("Selection is top instance")
-        // 		setInterval(() => {
-        // 			component.resize(node.width, node.height)
-        // 			component.layoutAlign = nodeLayoutAlign
-        // 			component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
-        // 		}, 100)
-        // 	}
-        // 	else {
-        // 		console.log("Selection is not top instance")
-        // 	}
-        // })
-        setInterval(() => {
-            if (figma.getNodeById(node.id)) {
-                component.resize(node.width, node.height);
-                component.layoutAlign = nodeLayoutAlign;
-                component.primaryAxisSizingMode = nodePrimaryAxisSizingMode;
-            }
-        }, 100);
-        // To avoid blinking when going to edit
-        setTimeout(() => {
-            if (figma.getNodeById(node.id)) {
-                node.opacity = 0;
-            }
-        }, 100);
-        figma.on('close', () => {
-            handle.cancel();
-            if (figma.getNodeById(node.id)) {
-                node.opacity = nodeOpacity;
-                // Probably not needed now that they are applied when resized at set interval
-                // component.layoutAlign = nodeLayoutAlign
-                // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
-            }
-            if (node.type !== "COMPONENT") {
-                component.remove();
-            }
-            if (figma.getNodeById(origSel[0].id)) {
-                if (node.type !== "COMPONENT") {
-                    figma.currentPage.selection = origSel;
+            figma.currentPage.appendChild(component);
+            function setPosition(node) {
+                if (figma.getNodeById(node.id)) {
+                    var relativePosition = getRelativePosition(node);
+                    component.x = getTopLevelParent(node).x + relativePosition.x;
+                    component.y = getTopLevelParent(node).y + relativePosition.y;
                 }
             }
-        });
-    }
-    else {
-        if (node.children) {
-            var length = node.children.length;
-            for (var i = 0; i < length; i++) {
-                var child = node.children[i];
-                editSlot(child);
+            setPosition(node);
+            setInterval(() => {
+                setPosition(node);
+                // component.resize(node.width, node.height)
+                // component.layoutAlign = nodeLayoutAlign
+                // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+            }, 200);
+            // figma.on('selectionchange', () => {
+            // 	if (figma.currentPage.selection[0]?.id === findTopInstance(origSelection)?.id) {
+            // 		console.log("Selection is top instance")
+            // 		setInterval(() => {
+            // 			component.resize(node.width, node.height)
+            // 			component.layoutAlign = nodeLayoutAlign
+            // 			component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+            // 		}, 100)
+            // 	}
+            // 	else {
+            // 		console.log("Selection is not top instance")
+            // 	}
+            // })
+            setInterval(() => {
+                if (figma.getNodeById(node.id)) {
+                    component.resize(node.width, node.height);
+                    component.layoutAlign = nodeLayoutAlign;
+                    component.primaryAxisSizingMode = nodePrimaryAxisSizingMode;
+                }
+            }, 100);
+            // To avoid blinking when going to edit
+            setTimeout(() => {
+                if (figma.getNodeById(node.id)) {
+                    node.opacity = 0;
+                }
+            }, 100);
+            figma.on('close', () => {
+                handle.cancel();
+                if (figma.getNodeById(node.id)) {
+                    node.opacity = nodeOpacity;
+                    // Probably not needed now that they are applied when resized at set interval
+                    // component.layoutAlign = nodeLayoutAlign
+                    // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+                }
+                if (node.type !== "COMPONENT") {
+                    component.remove();
+                }
+                if (figma.getNodeById(origSel[0].id)) {
+                    if (node.type !== "COMPONENT") {
+                        figma.currentPage.selection = origSel;
+                    }
+                }
+            });
+        }
+        else {
+            if (node.children) {
+                var length = node.children.length;
+                for (var i = 0; i < length; i++) {
+                    var child = node.children[i];
+                    editSlot(child);
+                }
             }
         }
     }
+    return nSlotsFound;
 }
 dist((plugin) => {
     plugin.ui = {
@@ -644,8 +651,16 @@ dist((plugin) => {
         figma.closePlugin();
     });
     plugin.command('editSlot', ({ ui, data }) => {
-        var sel = figma.currentPage.selection[0];
-        editSlot(sel);
+        var sel = figma.currentPage.selection;
+        if (sel.length > 0) {
+            var nSlotsFound = editSlot(sel);
+            if (nSlotsFound === 0) {
+                figma.closePlugin("No slots found");
+            }
+        }
+        else if (sel.length === 0) {
+            figma.notify("Please select a slot or instance with slots");
+        }
         // Create component from selection
         // Replace selection with instance of component
         // Delete component
