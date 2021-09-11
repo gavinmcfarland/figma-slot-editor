@@ -3,6 +3,7 @@ import plugma from 'plugma'
 // TODO: Disable making slot when part of instance
 // TODO: Only allow making slots on frames and top level instances inside of components?
 // TODO: Detect if slot already made
+// TODO: Let plugin work even when instance deleted
 
 import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
 
@@ -251,7 +252,6 @@ function removeSlot(node, level = 0, nSlots = 0) {
 
 function editSlot(node) {
 
-	console.log(getPluginData(node, "isSlot"))
 	if (getPluginData(node, "isSlot")) {
 
 		// node.name.endsWith('<slot>') && node.type === "INSTANCE"
@@ -309,6 +309,7 @@ function editSlot(node) {
 		// 		console.log("Selection is not top instance")
 		// 	}
 		// })
+
 
 		setInterval(() => {
 			component.resize(node.width, node.height)

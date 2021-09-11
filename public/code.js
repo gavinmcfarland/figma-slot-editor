@@ -496,7 +496,6 @@ function removeSlot(node, level = 0, nSlots = 0) {
     return nSlots;
 }
 function editSlot(node) {
-    console.log(getPluginData(node, "isSlot"));
     if (getPluginData(node, "isSlot")) {
         // node.name.endsWith('<slot>') && node.type === "INSTANCE"
         var nodeOpacity = node.opacity;
