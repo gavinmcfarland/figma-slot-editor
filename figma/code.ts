@@ -450,12 +450,12 @@ plugma((plugin) => {
 
 		if (numberSlotsMade > 1) {
 			figma.currentPage.selection = newSel
-			figma.notify("Slots made")
+			figma.notify(`${numberSlotsMade} slots made`)
 
 		}
 		else if (numberSlotsMade === 1) {
 			figma.currentPage.selection = newSel
-			figma.notify("Slot made")
+			figma.notify(`${numberSlotsMade} slot made`)
 
 		}
 
