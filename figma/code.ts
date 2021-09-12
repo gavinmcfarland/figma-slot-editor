@@ -6,7 +6,7 @@ import plugma from 'plugma'
 // FIXME: Enable editing more than one instance at a time DONE
 // FIXME: Stops editing after first go DONE
 
-// TODO: Disable making slot when part of instance NO
+// TODO: Disable making slot when part of instance inside a component
 // TODO: Only allow making slots on frames and top level instances inside of components? NO
 // TODO: Detect if slot already made DONE
 // TODO: Let plugin work even when instance deleted DONE
@@ -284,10 +284,10 @@ function editSlot(node) {
 
 			// node.name.endsWith('<slot>') && node.type === "INSTANCE"
 
-			var nodeOpacity = node.opacity
-			const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
-			var nodeLayoutAlign = node.layoutAlign
-			var nodePrimaryAxisSizingMode = node.primaryAxisSizingMode
+			let nodeOpacity = node.opacity
+			// const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
+			let nodeLayoutAlign = node.layoutAlign
+			let nodePrimaryAxisSizingMode = node.primaryAxisSizingMode
 
 			// Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
 			// var component = findComponentById(node.mainComponent.id)
@@ -323,6 +323,7 @@ function editSlot(node) {
 
 			setInterval(() => {
 
+				// FIXME: positioning
 				setPosition(node)
 				if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
 					component.resize(node.width, node.height)
@@ -350,10 +351,11 @@ function editSlot(node) {
 					// component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
 				}
 
-				// User might undo and then components are in Figma's hidden storage
-				if (component.parent !== null) {
+				// Need to find component because user may have deleted/undone it
+				let freshComponent = findComponentById(component.id)
+				if (freshComponent && freshComponent?.parent !== null) {
 					if (node.type !== "COMPONENT") {
-						component.remove()
+						freshComponent.remove()
 					}
 				}
 
@@ -364,7 +366,7 @@ function editSlot(node) {
 					}
 				}
 
-				handle.cancel()
+				// handle.cancel()
 
 			})
 		}
@@ -394,9 +396,13 @@ plugma((plugin) => {
 
 		for (var i = 0; i < sel.length; i++) {
 			var node = sel[i]
-			console.log(getPluginData(node, "isSlot"))
+
+			// Cannot make when part of an instance and part of component
+			var isAwkward = isPartOfInstance(node) && isPartOfComponent(node) && node.type !== "INSTANCE"
+
 			if (getPluginData(node, "isSlot") !== true) {
-				if ((node.type === "FRAME" || node.type === "INSTANCE") && (isPartOfComponent(node))) {
+
+				if (!isAwkward && ((node.type === "FRAME" || node.type === "INSTANCE") && (isPartOfComponent(node)))) {
 					node.name = node.name + " <slot>"
 
 
@@ -425,7 +431,13 @@ plugma((plugin) => {
 					numberSlotsMade += 1
 				}
 				else {
-					figma.notify("Slot must be a frame or instance inside a component")
+					if (isAwkward) {
+						figma.notify("Edit main component to make slot")
+					}
+					else {
+						figma.notify("Slot must be a frame or instance inside a component")
+					}
+
 				}
 			}
 			else {
@@ -459,9 +471,17 @@ plugma((plugin) => {
 
 
 		if (sel.length > 0) {
+			const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
 			var nSlotsFound = editSlot(sel)
 
+			if (nSlotsFound > 0) {
+
+				figma.on('close', () => {
+					handle.cancel()
+				})
+			}
 			if (nSlotsFound === 0) {
+				handle.cancel()
 				figma.closePlugin("No slots found")
 			}
 

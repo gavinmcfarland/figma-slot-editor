@@ -375,6 +375,34 @@ function getPluginData(node, key) {
     if (data)
         return JSON.parse(data);
 }
+function findComponentById(id) {
+    // var pages = figma.root.children
+    // var component
+    // // Look through each page to see if matches node id
+    // for (let i = 0; i < pages.length; i++) {
+    // 	if (pages[i].findOne(node => node.id === id && node.type === "COMPONENT")) {
+    // 		component = pages[i].findOne(node => node.id === id && node.type === "COMPONENT")
+    // 	}
+    // }
+    // return component || false
+    var node = figma.getNodeById(id);
+    if (node) {
+        if (node.parent === null || node.parent.parent === null) {
+            // figma.root.setPluginData("cellComponentState", "exists")
+            // If component in storage then restore it
+            figma.currentPage.appendChild(node);
+            return node;
+        }
+        else {
+            // figma.root.setPluginData("cellComponentState", "removed")
+            return node;
+        }
+    }
+    else {
+        // figma.root.setPluginData("cellComponentState", "deleted")
+        return null;
+    }
+}
 const isPageNode = (node) => {
     return node.type === 'PAGE';
 };
@@ -386,6 +414,18 @@ const getTopLevelParent = (node) => {
         return node;
     }
 };
+function isPartOfInstance(node) {
+    const parent = node.parent;
+    if (parent.type === 'INSTANCE') {
+        return true;
+    }
+    else if (parent.type === 'PAGE') {
+        return false;
+    }
+    else {
+        return isPartOfInstance(parent);
+    }
+}
 function isPartOfComponent(node) {
     const parent = node.parent;
     if (parent.type === 'COMPONENT') {
@@ -517,10 +557,10 @@ function editSlot(node) {
             // console.log(node.name)
             nSlotsFound += 1;
             // node.name.endsWith('<slot>') && node.type === "INSTANCE"
-            var nodeOpacity = node.opacity;
-            const handle = figma.notify("Editing slots...", { timeout: 99999999999 });
-            var nodeLayoutAlign = node.layoutAlign;
-            var nodePrimaryAxisSizingMode = node.primaryAxisSizingMode;
+            let nodeOpacity = node.opacity;
+            // const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
+            let nodeLayoutAlign = node.layoutAlign;
+            let nodePrimaryAxisSizingMode = node.primaryAxisSizingMode;
             // Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
             // var component = findComponentById(node.mainComponent.id)
             let component = makeComponent(node, "edit");
@@ -542,6 +582,7 @@ function editSlot(node) {
             }
             setPosition(node);
             setInterval(() => {
+                // FIXME: positioning
                 setPosition(node);
                 if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
                     component.resize(node.width, node.height);
@@ -565,10 +606,11 @@ function editSlot(node) {
                     // component.layoutAlign = nodeLayoutAlign
                     // component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
                 }
-                // User might undo and then components are in Figma's hidden storage
-                if (component.parent !== null) {
+                // Need to find component because user may have deleted/undone it
+                let freshComponent = findComponentById(component.id);
+                if (freshComponent && (freshComponent === null || freshComponent === void 0 ? void 0 : freshComponent.parent) !== null) {
                     if (node.type !== "COMPONENT") {
-                        component.remove();
+                        freshComponent.remove();
                     }
                 }
                 // FIXME: needs some work. Should loop through each node in original selection to see if they still exist
@@ -577,7 +619,7 @@ function editSlot(node) {
                         figma.currentPage.selection = origSel;
                     }
                 }
-                handle.cancel();
+                // handle.cancel()
             });
         }
         else {
@@ -599,9 +641,10 @@ dist((plugin) => {
         var numberSlotsMade = 0;
         for (var i = 0; i < sel.length; i++) {
             var node = sel[i];
-            console.log(getPluginData(node, "isSlot"));
+            // Cannot make when part of an instance and part of component
+            var isAwkward = isPartOfInstance(node) && isPartOfComponent(node) && node.type !== "INSTANCE";
             if (getPluginData(node, "isSlot") !== true) {
-                if ((node.type === "FRAME" || node.type === "INSTANCE") && (isPartOfComponent(node))) {
+                if (!isAwkward && ((node.type === "FRAME" || node.type === "INSTANCE") && (isPartOfComponent(node)))) {
                     node.name = node.name + " <slot>";
                     var parentComponent = getComponentParent(node);
                     if (parentComponent) {
@@ -620,7 +663,12 @@ dist((plugin) => {
                     numberSlotsMade += 1;
                 }
                 else {
-                    figma.notify("Slot must be a frame or instance inside a component");
+                    if (isAwkward) {
+                        figma.notify("Edit main component to make slot");
+                    }
+                    else {
+                        figma.notify("Slot must be a frame or instance inside a component");
+                    }
                 }
             }
             else {
@@ -641,8 +689,15 @@ dist((plugin) => {
     plugin.command('editSlot', ({ ui, data }) => {
         var sel = figma.currentPage.selection;
         if (sel.length > 0) {
+            const handle = figma.notify("Editing slots...", { timeout: 99999999999 });
             var nSlotsFound = editSlot(sel);
+            if (nSlotsFound > 0) {
+                figma.on('close', () => {
+                    handle.cancel();
+                });
+            }
             if (nSlotsFound === 0) {
+                handle.cancel();
                 figma.closePlugin("No slots found");
             }
         }
