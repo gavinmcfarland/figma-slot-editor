@@ -13,6 +13,7 @@ import plugma from 'plugma'
 
 // TODO: Do unit tests again
 // TODO: Check if happy with way selection works
+// FIXME: Give warning to user when trying to edit slot which has been detached
 
 import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
 
