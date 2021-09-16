@@ -14,6 +14,8 @@ import plugma from 'plugma'
 // TODO: Do unit tests again
 // TODO: Check if happy with way selection works
 // FIXME: Give warning to user when trying to edit slot which has been detached
+// TODO: Hide grids on instances when editing and lock them?
+// TODO: Check if mainComponent deleted and if so, remove instance
 
 import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
 
