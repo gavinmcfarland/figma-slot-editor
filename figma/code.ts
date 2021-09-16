@@ -291,6 +291,7 @@ function editSlot(node) {
 			// const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
 			let nodeLayoutAlign = node.layoutAlign
 			let nodePrimaryAxisSizingMode = node.primaryAxisSizingMode
+			let nodeOrigParent = node.parent
 
 			// Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
 			// var component = findComponentById(node.mainComponent.id)
@@ -323,8 +324,21 @@ function editSlot(node) {
 
 			setPosition(node)
 
+			node.visible = false
 
 			setInterval(() => {
+
+
+				if (component.parent === null) {
+					// Keep getting error message when changing node
+					node.visible = false
+
+				}
+				else {
+					if (node.visible === false) {
+						node.visible = true
+					}
+				}
 
 				// FIXME: positioning
 				setPosition(node)
