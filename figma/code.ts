@@ -15,7 +15,8 @@ import plugma from 'plugma'
 // TODO: Check if happy with way selection works
 // FIXME: Give warning to user when trying to edit slot which has been detached
 // TODO: Hide grids on instances when editing and lock them?
-// TODO: Check if mainComponent deleted and if so, remove instance
+// TODO: Check if mainComponent deleted and if so, remove instance DONE/ERROR can't fix
+// FIXME: If slots are invisible then don't show when editing?
 
 import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
 
@@ -157,6 +158,9 @@ function getNodeIndex(node: SceneNode): number {
 
 function makeComponent(node, action = "make") {
 
+	var origNode = node
+	var newInstance;
+
 	if (node.type === "INSTANCE" && action === "make") {
 		const component = node.mainComponent
 
@@ -193,8 +197,6 @@ function makeComponent(node, action = "make") {
 		setPluginData(component, "isSlot", true)
 		// Add relaunch data to top level component of slot
 
-		var origNode = node
-
 		if (node.type === "INSTANCE") {
 			node = node.clone().detachInstance()
 		}
@@ -219,10 +221,12 @@ function makeComponent(node, action = "make") {
 		}
 		else {
 			var instance = component.createInstance()
+
 			node.parent.insertChild(getNodeIndex(node), instance)
 			if (action === "make") {
 				newSel.push(instance)
 			}
+			newInstance = instance
 		}
 
 
@@ -231,7 +235,9 @@ function makeComponent(node, action = "make") {
 		node.remove()
 
 
-		return component
+		return {
+			component, origNode, newInstance
+		}
 	}
 
 }
@@ -292,11 +298,17 @@ function editSlot(node) {
 			let nodeLayoutAlign = node.layoutAlign
 			let nodePrimaryAxisSizingMode = node.primaryAxisSizingMode
 			let nodeOrigParent = node.parent
+			let origNodeVisible = node.visible
+			console.log(origNodeVisible)
 
 			// Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
 			// var component = findComponentById(node.mainComponent.id)
 
-			let component = makeComponent(node, "edit")
+			// FIXME: Maybe instance is not the same node when new node is made
+			let { component } = makeComponent(node, "edit")
+
+			// Set the visibility to hidden if the instance is hidden by default (ie don't show slot)
+			component.visible = origNodeVisible
 
 
 			// figma.viewport.scrollAndZoomIntoView(component)
@@ -324,21 +336,15 @@ function editSlot(node) {
 
 			setPosition(node)
 
-			node.visible = false
-
 			setInterval(() => {
 
 
-				if (component.parent === null) {
-					// Keep getting error message when changing node
-					node.visible = false
-
-				}
-				else {
-					if (node.visible === false) {
-						node.visible = true
+					// If component removed by user, then hide the instance
+					if (component.parent === null) {
+						// Keep getting error message when changing node visibility
+						node.visible = false
 					}
-				}
+
 
 				// FIXME: positioning
 				setPosition(node)
@@ -433,7 +439,7 @@ plugma((plugin) => {
 						})
 					}
 
-					var component = makeComponent(node)
+					var { component } = makeComponent(node)
 
 					setPluginData(component, "isSlot", true)
 

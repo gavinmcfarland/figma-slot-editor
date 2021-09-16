@@ -472,6 +472,8 @@ function getNodeIndex(node) {
     return node.parent.children.indexOf(node);
 }
 function makeComponent(node, action = "make") {
+    var origNode = node;
+    var newInstance;
     if (node.type === "INSTANCE" && action === "make") {
         const component = node.mainComponent;
         component.setRelaunchData({
@@ -499,7 +501,6 @@ function makeComponent(node, action = "make") {
         });
         setPluginData(component, "isSlot", true);
         // Add relaunch data to top level component of slot
-        var origNode = node;
         if (node.type === "INSTANCE") {
             node = node.clone().detachInstance();
         }
@@ -520,9 +521,12 @@ function makeComponent(node, action = "make") {
             if (action === "make") {
                 newSel.push(instance);
             }
+            newInstance = instance;
         }
         node.remove();
-        return component;
+        return {
+            component, origNode, newInstance
+        };
     }
 }
 var numberSlots = 0;
@@ -562,9 +566,14 @@ function editSlot(node) {
             let nodeLayoutAlign = node.layoutAlign;
             let nodePrimaryAxisSizingMode = node.primaryAxisSizingMode;
             node.parent;
+            let origNodeVisible = node.visible;
+            console.log(origNodeVisible);
             // Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
             // var component = findComponentById(node.mainComponent.id)
-            let component = makeComponent(node, "edit");
+            // FIXME: Maybe instance is not the same node when new node is made
+            let { component } = makeComponent(node, "edit");
+            // Set the visibility to hidden if the instance is hidden by default (ie don't show slot)
+            component.visible = origNodeVisible;
             // figma.viewport.scrollAndZoomIntoView(component)
             if (selectionSet === false) {
                 // console.log("Selection set")
@@ -582,16 +591,11 @@ function editSlot(node) {
                 }
             }
             setPosition(node);
-            node.visible = false;
             setInterval(() => {
+                // If component removed by user, then hide the instance
                 if (component.parent === null) {
-                    // Keep getting error message when changing node
+                    // Keep getting error message when changing node visibility
                     node.visible = false;
-                }
-                else {
-                    if (node.visible === false) {
-                        node.visible = true;
-                    }
                 }
                 // FIXME: positioning
                 setPosition(node);
@@ -664,7 +668,7 @@ dist((plugin) => {
                             'removeSlot': 'Remove slots on this instance'
                         });
                     }
-                    var component = makeComponent(node);
+                    var { component } = makeComponent(node);
                     setPluginData(component, "isSlot", true);
                     if (parentComponent) {
                         if (node.type !== "INSTANCE") {
