@@ -16,7 +16,7 @@ import plugma from 'plugma'
 // FIXME: Give warning to user when trying to edit slot which has been detached
 // TODO: Hide grids on instances when editing and lock them?
 // TODO: Check if mainComponent deleted and if so, remove instance DONE/ERROR can't fix
-// FIXME: If slots are invisible then don't show when editing?
+// FIXME: If slots are invisible then don't show when editing? DONE
 
 import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
 
