@@ -1,5 +1,7 @@
 import plugma from 'plugma'
 
+// TODO: Add a warning if selection contains slots? DONE
+
 // FIXME: When no selection when editing DONE
 // FIXME: When no slots when editing DONE
 // FIXME: When trying to turn something inside instances into slot NOT NEEDED
@@ -328,10 +330,12 @@ function makeComponent(node, action = "make") {
 
 }
 
+
 var numberSlots = 0
 
 function removeSlot(node, traverseChildren = true) {
 	var nodes = putValuesIntoArray(node)
+
 
 	// if (sel.length > 0) {
 		for (var i = 0; i < nodes.length; i++) {
@@ -503,75 +507,107 @@ plugma((plugin) => {
 		var sel = figma.currentPage.selection
 		var numberSlotsMade = 0
 
-		for (var i = 0; i < sel.length; i++) {
-			var node = sel[i]
+		var numberSlots = 0
 
-			// Cannot make when part of an instance and part of component
-			var isAwkward = isPartOfInstance(node) && isPartOfComponent(node) && node.type !== "INSTANCE"
+		function countSlots(nodes) {
 
-			if (getPluginData(node, "isSlot") !== true) {
+			// if (sel.length > 0) {
+			for (var i = 0; i < nodes.length; i++) {
 
-				if (!isAwkward && ((isPartOfComponent(node)))) {
+				var node = nodes[i]
+
+				if (getPluginData(node, "isSlot")) {
+					numberSlots += 1
+				}
+				if (node.children) {
+					countSlots(node.children)
+				}
+			}
+
+			return numberSlots
+
+
+		}
+
+		if (countSlots(sel) > 1) {
+			figma.closePlugin(`Already contains ${numberSlots} slots`)
+		}
+		else if (numberSlots === 1) {
+			figma.closePlugin(`Already contains ${numberSlots} slot`)
+		}
+		else {
+			for (var i = 0; i < sel.length; i++) {
+				var node = sel[i]
+
+				// Cannot make when part of an instance and part of component
+				var isAwkward = isPartOfInstance(node) && isPartOfComponent(node) && node.type !== "INSTANCE"
+
+				if (getPluginData(node, "isSlot") !== true) {
+
+					if (!isAwkward && ((isPartOfComponent(node)))) {
 
 
 
 
-					var parentComponent = getComponentParent(node)
+						var parentComponent = getComponentParent(node)
 
-					if (parentComponent) {
-						parentComponent.setRelaunchData({
-							'editSlot': 'Edit slots on this instance',
-							'removeSlot': 'Remove slots on this instance'
-						})
+						if (parentComponent) {
+							parentComponent.setRelaunchData({
+								'editSlot': 'Edit slots on this instance',
+								'removeSlot': 'Remove slots on this instance'
+							})
+						}
+
+						var { component } = makeComponent(node)
+
+						console.log("component", component)
+
+						component.name = component.name + " <slot>"
+						// newInstance.name = component.name + " <slot>"
+
+						setPluginData(component, "isSlot", true)
+
+						if (parentComponent) {
+
+							if (node.type !== "INSTANCE") {
+								component.remove()
+							}
+
+						}
+
+						numberSlotsMade += 1
 					}
-
-					var { component } = makeComponent(node)
-
-					console.log("component", component)
-
-					component.name = component.name + " <slot>"
-					// newInstance.name = component.name + " <slot>"
-
-					setPluginData(component, "isSlot", true)
-
-					if (parentComponent) {
-
-						if (node.type !== "INSTANCE") {
-							component.remove()
+					else {
+						if (isAwkward) {
+							figma.notify("Edit main component to make slot")
+						}
+						else {
+							figma.notify("Slot must be inside a component")
 						}
 
 					}
-
-					numberSlotsMade += 1
 				}
 				else {
-					if (isAwkward) {
-						figma.notify("Edit main component to make slot")
-					}
-					else {
-						figma.notify("Slot must be inside a component")
-					}
-
+					figma.notify("Already a slot")
 				}
-			}
-			else {
-				figma.notify("Already a slot")
+
 			}
 
+			console.log(numberSlotsMade)
+
+			if (numberSlotsMade > 1) {
+				figma.currentPage.selection = newSel
+				figma.notify(`${numberSlotsMade} slots made`)
+
+			}
+			else if (numberSlotsMade === 1) {
+				figma.currentPage.selection = newSel
+				figma.notify(`${numberSlotsMade} slot made`)
+
+			}
 		}
 
-		console.log(numberSlotsMade)
 
-		if (numberSlotsMade > 1) {
-			figma.currentPage.selection = newSel
-			figma.notify(`${numberSlotsMade} slots made`)
-
-		}
-		else if (numberSlotsMade === 1) {
-			figma.currentPage.selection = newSel
-			figma.notify(`${numberSlotsMade} slot made`)
-
-		}
 
 		figma.closePlugin()
 
