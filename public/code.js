@@ -472,62 +472,96 @@ function getNodeIndex(node) {
     return node.parent.children.indexOf(node);
 }
 function makeComponent(node, action = "make") {
+    console.log(node.name);
     var origNode = node;
-    var newInstance;
-    if (node.type === "INSTANCE" && action === "make") {
-        const component = node.mainComponent;
-        component.setRelaunchData({
-            'editSlot': 'Edit the selected slot',
-            'removeSlot': 'Remove the selected slot'
-        });
-        node.setRelaunchData({
-            'editSlot': 'Edit the selected slot',
-            'removeSlot': 'Remove the selected slot'
-        });
-        setPluginData(component, "isSlot", true);
-        setPluginData(node, "isSlot", true);
-        figma.currentPage.selection = [node];
-        if (action === "make") {
-            newSel.push(node);
-        }
-        return component;
-    }
-    else {
-        // Make unique
-        const component = figma.createComponent();
-        component.setRelaunchData({
-            'editSlot': 'Edit the selected slot',
-            'removeSlot': 'Remove the selected slot'
-        });
-        setPluginData(component, "isSlot", true);
-        // Add relaunch data to top level component of slot
-        if (node.type === "INSTANCE") {
-            node = node.clone().detachInstance();
-        }
-        component.resizeWithoutConstraints(node.width, node.height);
+    var container = node.parent;
+    var origNodeIndex = getNodeIndex(node);
+    var clonedNode;
+    // if (action === "make") {
+    // 	const component = node.mainComponent
+    // 	component.setRelaunchData({
+    // 		'editSlot': 'Edit the selected slot',
+    // 		'removeSlot': 'Remove the selected slot'
+    // 	})
+    // 	node.setRelaunchData({
+    // 		'editSlot': 'Edit the selected slot',
+    // 		'removeSlot': 'Remove the selected slot'
+    // 	})
+    // 	setPluginData(component, "isSlot", true)
+    // 	setPluginData(node, "isSlot", true)
+    // 	figma.currentPage.selection = [node]
+    // 	if (action === "make") {
+    // 		newSel.push(node)
+    // 	}
+    // 	return { component }
+    // }
+    // else {
+    // Make unique
+    // Create a unique instance by recreating it as a component
+    const component = figma.createComponent();
+    component.setRelaunchData({
+        'editSlot': 'Edit the selected slot',
+        'removeSlot': 'Remove the selected slot'
+    });
+    setPluginData(component, "isSlot", true);
+    component.resizeWithoutConstraints(node.width, node.height);
+    if (node.type === "FRAME" || node.type === "INSTANCE") {
         copyPaste(node, component);
+        // If it's an instance, it needs to be detached so it's children can be moved to component
+        if (node.type === "INSTANCE") {
+            clonedNode = node.clone();
+            clonedNode.name = clonedNode.name + " clone";
+            node = clonedNode.detachInstance();
+        }
         for (const child of node.children) {
             component.appendChild(child);
         }
-        if (origNode.type === "INSTANCE") {
-            origNode.swapComponent(component);
-            if (action === "make") {
-                newSel.push(origNode);
+        if (action === "edit") {
+            if (origNode.type === "INSTANCE") {
+                origNode.swapComponent(component);
             }
         }
-        else {
-            var instance = component.createInstance();
-            node.parent.insertChild(getNodeIndex(node), instance);
-            if (action === "make") {
-                newSel.push(instance);
-            }
-            newInstance = instance;
-        }
-        node.remove();
-        return {
-            component, origNode, newInstance
-        };
+        // }
+        // newSel.push(origNode)
     }
+    else {
+        // If it's not a frame or instance just add it to container
+        if (node.type === "TEXT") {
+            component.layoutMode = "VERTICAL";
+            if (node.textAutoResize === "HEIGHT") {
+                component.primaryAxisSizingMode = "AUTO";
+            }
+            if (node.textAutoResize === "WIDTH_AND_HEIGHT") {
+                component.primaryAxisSizingMode = "AUTO";
+                component.counterAxisSizingMode = "AUTO";
+            }
+            // if (node.textAutoResize === "WIDTH_AND_HEIGHT") {
+            // 	height = "hug-contents"
+            // 	width = "hug-contents"
+            // }
+        }
+        copyPaste(node, component, { include: ['layoutAlign', 'layoutGrow', 'name'] });
+        component.appendChild(node);
+    }
+    if (action === "make") {
+        var instance = component.createInstance();
+        container.insertChild(origNodeIndex, instance);
+        if (origNode.type === "INSTANCE" && origNode)
+            origNode.remove();
+        newSel.push(instance);
+    }
+    if (node.type === "FRAME") {
+        node.remove();
+    }
+    // for (var i = 0; i < discardNodes.length; i++) {
+    // 	var node = discardNodes[i]
+    // 	node.remove()
+    // }
+    return {
+        component, origNode
+    };
+    // }
+    // }
 }
 var numberSlots = 0;
 function removeSlot(node, traverseChildren = true) {
@@ -659,8 +693,7 @@ dist((plugin) => {
             // Cannot make when part of an instance and part of component
             var isAwkward = isPartOfInstance(node) && isPartOfComponent(node) && node.type !== "INSTANCE";
             if (getPluginData(node, "isSlot") !== true) {
-                if (!isAwkward && ((node.type === "FRAME" || node.type === "INSTANCE") && (isPartOfComponent(node)))) {
-                    node.name = node.name + " <slot>";
+                if (!isAwkward && ((isPartOfComponent(node)))) {
                     var parentComponent = getComponentParent(node);
                     if (parentComponent) {
                         parentComponent.setRelaunchData({
@@ -669,6 +702,9 @@ dist((plugin) => {
                         });
                     }
                     var { component } = makeComponent(node);
+                    console.log("component", component);
+                    component.name = component.name + " <slot>";
+                    // newInstance.name = component.name + " <slot>"
                     setPluginData(component, "isSlot", true);
                     if (parentComponent) {
                         if (node.type !== "INSTANCE") {
@@ -682,7 +718,7 @@ dist((plugin) => {
                         figma.notify("Edit main component to make slot");
                     }
                     else {
-                        figma.notify("Slot must be a frame or instance inside a component");
+                        figma.notify("Slot must be inside a component");
                     }
                 }
             }

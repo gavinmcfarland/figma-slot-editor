@@ -158,87 +158,173 @@ function getNodeIndex(node: SceneNode): number {
 
 function makeComponent(node, action = "make") {
 
+	console.log(node.name)
+
 	var origNode = node
-	var newInstance;
+	var container = node.parent
+	var origNodeIndex = getNodeIndex(node)
+	var clonedNode;
+	var discardNodes = []
 
-	if (node.type === "INSTANCE" && action === "make") {
-		const component = node.mainComponent
+	// if (action === "make") {
+	// 	const component = node.mainComponent
 
-		component.setRelaunchData({
-			'editSlot': 'Edit the selected slot',
-			'removeSlot': 'Remove the selected slot'
-		})
+	// 	component.setRelaunchData({
+	// 		'editSlot': 'Edit the selected slot',
+	// 		'removeSlot': 'Remove the selected slot'
+	// 	})
 
-		node.setRelaunchData({
-			'editSlot': 'Edit the selected slot',
-			'removeSlot': 'Remove the selected slot'
-		})
+	// 	node.setRelaunchData({
+	// 		'editSlot': 'Edit the selected slot',
+	// 		'removeSlot': 'Remove the selected slot'
+	// 	})
 
-		setPluginData(component, "isSlot", true)
-		setPluginData(node, "isSlot", true)
-		figma.currentPage.selection = [node]
+	// 	setPluginData(component, "isSlot", true)
+	// 	setPluginData(node, "isSlot", true)
+	// 	figma.currentPage.selection = [node]
 
-		if (action === "make") {
-			newSel.push(node)
-		}
+	// 	if (action === "make") {
+	// 		newSel.push(node)
+	// 	}
 
-		return component
+	// 	return { component }
 
-	}
-	else {
+	// }
+	// else {
 
-		// Make unique
-		const component = figma.createComponent()
 
-		component.setRelaunchData({
-			'editSlot': 'Edit the selected slot',
-			'removeSlot': 'Remove the selected slot'
-		})
-		setPluginData(component, "isSlot", true)
-		// Add relaunch data to top level component of slot
+	// Make unique
+	// Create a unique instance by recreating it as a component
+	const component = figma.createComponent()
 
-		if (node.type === "INSTANCE") {
-			node = node.clone().detachInstance()
-		}
+	component.setRelaunchData({
+		'editSlot': 'Edit the selected slot',
+		'removeSlot': 'Remove the selected slot'
+	})
+	setPluginData(component, "isSlot", true)
+	component.resizeWithoutConstraints(node.width, node.height)
 
-		component.resizeWithoutConstraints(node.width, node.height)
+
+	if (node.type === "FRAME" || node.type === "INSTANCE") {
 
 		copyPaste(node, component)
 
+		// If it's an instance, it needs to be detached so it's children can be moved to component
+		if (node.type === "INSTANCE") {
+			clonedNode = node.clone()
+			clonedNode.name = clonedNode.name + " clone"
+			node = clonedNode.detachInstance()
+
+		}
 		for (const child of node.children) {
 			component.appendChild(child)
 		}
 
-
-
-
-		if (origNode.type === "INSTANCE") {
-			origNode.swapComponent(component)
-
-			if (action === "make") {
-				newSel.push(origNode)
+		if (action === "edit") {
+			if (origNode.type === "INSTANCE") {
+				origNode.swapComponent(component)
 			}
 		}
-		else {
-			var instance = component.createInstance()
 
-			node.parent.insertChild(getNodeIndex(node), instance)
-			if (action === "make") {
-				newSel.push(instance)
+		// }
+
+		// newSel.push(origNode)
+
+
+	}
+	else {
+
+		// If it's not a frame or instance just add it to container
+
+		if (node.type === "TEXT") {
+			component.layoutMode = "VERTICAL"
+			if (node.textAutoResize === "HEIGHT") {
+				component.primaryAxisSizingMode = "AUTO"
 			}
-			newInstance = instance
+
+			if (node.textAutoResize === "WIDTH_AND_HEIGHT") {
+				component.primaryAxisSizingMode = "AUTO"
+				component.counterAxisSizingMode = "AUTO"
+			}
+
+			// if (node.textAutoResize === "WIDTH_AND_HEIGHT") {
+			// 	height = "hug-contents"
+			// 	width = "hug-contents"
+			// }
+
 		}
+		copyPaste(node, component, { include: ['layoutAlign', 'layoutGrow', 'name'] })
+		component.appendChild(node)
+	}
+
+	if (action === "make") {
+		var instance = component.createInstance()
+		container.insertChild(origNodeIndex, instance)
+		if (origNode.type === "INSTANCE" && origNode) origNode.remove()
+		newSel.push(instance)
+	}
+
+	if (action !== "edit") {
+// Create new instance and replace with existing one
+	// var instance = component.createInstance()
+
+
+	// If have to create a new container then copy the layout properties across to the instance
+	// if (!(node.type === "FRAME" || node.type === "INSTANCE")) {
+	// 	copyPaste(node, instance, { include: ['layoutAlign', 'layoutGrow', 'primaryAxisSizingMode', 'counterAxisSizingMode'] })
+	// }
+
+	// if (origNode.type === "INSTANCE") {
+	// 	instance = origNode.swapComponent(component)
+	// }
+
+	// if (action === "make") {
+	// 	container.insertChild(origNodeIndex, instance)
+	// }
+		// if (action === "make") {
+		// 	newSel.push(instance)
+		// }
+		// }
+
+		// newSel.push(instance)
 
 
 
+		// console.log(node.name)
 
+		// if (node.type === "FRAME" || node.type === "INSTANCE") {
+
+		// }
+
+		// node.remove()
+
+		// if (tempNode) {
+		// 	instance.remove()
+		// }
+
+
+		// console.log(node.name)
+	}
+
+	if (node.type === "FRAME") {
 		node.remove()
+	}
+
+
+	// for (var i = 0; i < discardNodes.length; i++) {
+	// 	var node = discardNodes[i]
+	// 	node.remove()
+	// }
+
+
+
 
 
 		return {
-			component, origNode, newInstance
+			component, origNode
 		}
-	}
+		// }
+	// }
 
 }
 
@@ -425,8 +511,8 @@ plugma((plugin) => {
 
 			if (getPluginData(node, "isSlot") !== true) {
 
-				if (!isAwkward && ((node.type === "FRAME" || node.type === "INSTANCE") && (isPartOfComponent(node)))) {
-					node.name = node.name + " <slot>"
+				if (!isAwkward && ((isPartOfComponent(node)))) {
+
 
 
 
@@ -440,6 +526,11 @@ plugma((plugin) => {
 					}
 
 					var { component } = makeComponent(node)
+
+					console.log("component", component)
+
+					component.name = component.name + " <slot>"
+					// newInstance.name = component.name + " <slot>"
 
 					setPluginData(component, "isSlot", true)
 
@@ -458,7 +549,7 @@ plugma((plugin) => {
 						figma.notify("Edit main component to make slot")
 					}
 					else {
-						figma.notify("Slot must be a frame or instance inside a component")
+						figma.notify("Slot must be inside a component")
 					}
 
 				}
