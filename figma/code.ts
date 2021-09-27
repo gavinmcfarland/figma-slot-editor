@@ -120,12 +120,25 @@ function findTopInstance(node) {
 }
 
 function getComponentParent(node) {
+	if (node.type === "COMPONENT") return node
 	if (node.type === "PAGE") return null
 	if (node?.parent?.type === "COMPONENT") {
 		return node.parent
 	}
 	else {
 		return getComponentParent(node?.parent)
+	}
+}
+
+
+function getSlotParent(node) {
+	if (getPluginData(node, "isSlotParent")) return node
+	if (node.type === "PAGE") return null
+	if (getPluginData(node?.parent, "isSlotParent")) {
+		return node.parent
+	}
+	else {
+		return getSlotParent(node?.parent)
 	}
 }
 
@@ -160,7 +173,6 @@ function getNodeIndex(node: SceneNode): number {
 
 function makeComponent(node, action = "make") {
 
-	console.log(node.name)
 
 	var origNode = node
 	var container = node.parent
@@ -203,6 +215,7 @@ function makeComponent(node, action = "make") {
 		'editSlot': 'Edit the selected slot',
 		'removeSlot': 'Remove the selected slot'
 	})
+
 	setPluginData(component, "isSlot", true)
 	component.resizeWithoutConstraints(node.width, node.height)
 
@@ -319,7 +332,7 @@ function makeComponent(node, action = "make") {
 	// }
 
 
-
+	component.remove()
 
 
 		return {
@@ -331,16 +344,40 @@ function makeComponent(node, action = "make") {
 }
 
 
+var countNumberSlots = 0
 var numberSlots = 0
 
-function removeSlot(node, traverseChildren = true) {
-	var nodes = putValuesIntoArray(node)
+function countSlots(nodes) {
 
+	// if (sel.length > 0) {
+	for (var i = 0; i < nodes.length; i++) {
+
+		var node = nodes[i]
+
+		if (JSON.parse(node.getPluginData("isSlot"))) {
+			countNumberSlots += 1
+		}
+		if (node.children) {
+			countSlots(node.children)
+		}
+	}
+
+	return countNumberSlots
+
+
+}
+
+function removeSlot(node, traverseChildren = true) {
+
+	var origSel = node
+	var nodes = putValuesIntoArray(node)
 
 	// if (sel.length > 0) {
 		for (var i = 0; i < nodes.length; i++) {
 
 			var node = nodes[i]
+
+
 
 			if (getPluginData(node, "isSlot")) {
 				numberSlots += 1
@@ -350,7 +387,11 @@ function removeSlot(node, traverseChildren = true) {
 			// TODO: Better if it removes from main component
 
 			node.name = node.name.replace(/<slot>$/, "")
-			node.setRelaunchData({})
+
+			// TODO: Count how many slots left before removing relaunch data
+			var parentComponent = getComponentParent(node)
+
+
 			setPluginData(node, "isSlot", "")
 
 			if (traverseChildren) {
@@ -359,6 +400,16 @@ function removeSlot(node, traverseChildren = true) {
 				}
 			}
 
+			// let count = countSlots([parentComponent])
+
+			if (node.id !== parentComponent?.id) {
+				node.setRelaunchData({})
+
+				// console.log(count)
+				// if (count < 1) {
+				// 	parentComponent.setRelaunchData({})
+				// }
+			}
 
 
 
@@ -389,7 +440,7 @@ function editSlot(node) {
 			let nodePrimaryAxisSizingMode = node.primaryAxisSizingMode
 			let nodeOrigParent = node.parent
 			let origNodeVisible = node.visible
-			console.log(origNodeVisible)
+
 
 			// Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
 			// var component = findComponentById(node.mainComponent.id)
@@ -507,27 +558,7 @@ plugma((plugin) => {
 		var sel = figma.currentPage.selection
 		var numberSlotsMade = 0
 
-		var numberSlots = 0
 
-		function countSlots(nodes) {
-
-			// if (sel.length > 0) {
-			for (var i = 0; i < nodes.length; i++) {
-
-				var node = nodes[i]
-
-				if (getPluginData(node, "isSlot")) {
-					numberSlots += 1
-				}
-				if (node.children) {
-					countSlots(node.children)
-				}
-			}
-
-			return numberSlots
-
-
-		}
 
 		if (countSlots(sel) > 1) {
 			figma.closePlugin(`Already contains ${numberSlots} slots`)
@@ -540,7 +571,7 @@ plugma((plugin) => {
 				var node = sel[i]
 
 				// Cannot make when part of an instance and part of component
-				var isAwkward = isPartOfInstance(node) && isPartOfComponent(node) && node.type !== "INSTANCE"
+				var isAwkward = (isPartOfInstance(node))
 
 				if (getPluginData(node, "isSlot") !== true) {
 
@@ -552,6 +583,7 @@ plugma((plugin) => {
 						var parentComponent = getComponentParent(node)
 
 						if (parentComponent) {
+							setPluginData(parentComponent, "isSlotParent", true)
 							parentComponent.setRelaunchData({
 								'editSlot': 'Edit slots on this instance',
 								'removeSlot': 'Remove slots on this instance'
@@ -560,7 +592,7 @@ plugma((plugin) => {
 
 						var { component } = makeComponent(node)
 
-						console.log("component", component)
+
 
 						component.name = component.name + " <slot>"
 						// newInstance.name = component.name + " <slot>"
@@ -593,7 +625,7 @@ plugma((plugin) => {
 
 			}
 
-			console.log(numberSlotsMade)
+
 
 			if (numberSlotsMade > 1) {
 				figma.currentPage.selection = newSel
@@ -637,7 +669,7 @@ plugma((plugin) => {
 
 		}
 		else if (sel.length === 0) {
-			figma.notify("Please select a slot or instance with slots")
+			figma.closePlugin("Please select a slot or instance with slots")
 		}
 
 
@@ -645,6 +677,28 @@ plugma((plugin) => {
 
 	plugin.command('removeSlot', () => {
 		var nSlotsRemoved = removeSlot(figma.currentPage.selection)
+
+		// Check remaining slots and if none then remove relaunch data from parent component
+		for (var i = 0; i < figma.currentPage.selection.length; i++) {
+			var node = figma.currentPage.selection[i]
+			var parent = getComponentParent(node) || getSlotParent(node)
+
+			// Only way to remove from instance parent as well is to set data when relaunch data added in first place on component so that you know to remove it when its an instance
+			if (parent) {
+				let count = countSlots([parent])
+
+				// if (node.id !== parentComponent?.id) {
+				// 	node.setRelaunchData({})
+
+				// 	console.log(count)
+				if (count < 1) {
+					parent.setRelaunchData({})
+				}
+			// }
+			}
+
+		}
+
 
 		if (nSlotsRemoved > 1) {
 			figma.closePlugin(`${nSlotsRemoved} slots removed`)

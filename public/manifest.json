@@ -11,16 +11,16 @@
       "command": "makeSlot"
     },
     {
-      "name": "Edit Slot",
+      "name": "Edit Slots",
       "command": "editSlot"
     },
     {
-      "name": "Remove Slot",
+      "name": "Remove Slots",
       "command": "removeSlot"
     }
   ],
   "relaunchButtons": [
-      {"command": "editSlot", "name": "Edit Slot"},
-      {"command": "removeSlot", "name": "Remove Slot"}
+      {"command": "editSlot", "name": "Edit Slot", "multipleSelection": true},
+      {"command": "removeSlot", "name": "Remove Slot", "multipleSelection": true}
     ]
 }
