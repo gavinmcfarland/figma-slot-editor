@@ -11,11 +11,11 @@
       "command": "makeSlot"
     },
     {
-      "name": "Edit Slots",
+      "name": "Edit Slot",
       "command": "editSlot"
     },
     {
-      "name": "Remove Slots",
+      "name": "Remove Slot",
       "command": "removeSlot"
     }
   ],

@@ -274,6 +274,8 @@ function makeComponent(node, action = "make") {
 
 	if (action === "make") {
 		var instance = component.createInstance()
+		instance.layoutAlign = node.layoutAlign
+		instance.layoutGrow = node.layoutGrow
 		container.insertChild(origNodeIndex, instance)
 		if (origNode.type === "INSTANCE" && origNode) origNode.remove()
 		newSel.push(instance)
@@ -438,6 +440,8 @@ function editSlot(node) {
 			// const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
 			let nodeLayoutAlign = node.layoutAlign
 			let nodePrimaryAxisSizingMode = node.primaryAxisSizingMode
+			let nodeCounterAxisSizingMode = node.counterAxisSizingMode
+			let nodeLayoutGrow = node.layoutGrow
 			let nodeOrigParent = node.parent
 			let origNodeVisible = node.visible
 
@@ -488,16 +492,17 @@ function editSlot(node) {
 
 
 				// FIXME: positioning
-				setPosition(node)
+			setPosition(node)
 				if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
 					component.resize(node.width, node.height)
 					component.layoutAlign = nodeLayoutAlign
 					component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+					component.counterAxisSizingMode = nodeCounterAxisSizingMode
 				}
 				// component.resize(node.width, node.height)
 				// component.layoutAlign = nodeLayoutAlign
 				// component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
-			}, 200)
+			}, 100)
 
 			// To avoid blinking when going to edit
 			setTimeout(() => {
@@ -706,6 +711,9 @@ plugma((plugin) => {
 
 		else if (nSlotsRemoved === 1) {
 			figma.closePlugin(`${nSlotsRemoved} slot removed`)
+		}
+		else {
+			figma.closePlugin(`No slots found`)
 		}
 
 
