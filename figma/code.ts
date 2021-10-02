@@ -20,7 +20,7 @@ import plugma from 'plugma'
 // TODO: Check if mainComponent deleted and if so, remove instance DONE/ERROR can't fix
 // FIXME: If slots are invisible then don't show when editing? DONE
 
-import { setPluginData, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
+import { setPluginData, isInsideInstance, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
 
 var selectionSet = false
 var origSel = figma.currentPage.selection
@@ -222,12 +222,12 @@ function makeComponent(node, action = "make") {
 
 	if (node.type === "FRAME" || node.type === "INSTANCE") {
 
+
 		copyPaste(node, component)
 
 		// If it's an instance, it needs to be detached so it's children can be moved to component
 		if (node.type === "INSTANCE") {
 			clonedNode = node.clone()
-			clonedNode.name = clonedNode.name + " clone"
 			node = clonedNode.detachInstance()
 
 		}
@@ -235,11 +235,14 @@ function makeComponent(node, action = "make") {
 			component.appendChild(child)
 		}
 
+
+
 		if (action === "edit") {
 			if (origNode.type === "INSTANCE") {
 				origNode.swapComponent(component)
 			}
 		}
+
 
 		// }
 
@@ -274,8 +277,7 @@ function makeComponent(node, action = "make") {
 
 	if (action === "make") {
 		var instance = component.createInstance()
-		instance.layoutAlign = node.layoutAlign
-		instance.layoutGrow = node.layoutGrow
+		copyPaste(node, instance, { include: ['layoutAlign', 'layoutGrow'] })
 		container.insertChild(origNodeIndex, instance)
 		if (origNode.type === "INSTANCE" && origNode) origNode.remove()
 		newSel.push(instance)
@@ -377,7 +379,7 @@ function removeSlot(node, traverseChildren = true) {
 	// if (sel.length > 0) {
 		for (var i = 0; i < nodes.length; i++) {
 
-			var node = nodes[i]
+			let node = nodes[i]
 
 
 
@@ -386,9 +388,16 @@ function removeSlot(node, traverseChildren = true) {
 				traverseChildren = false
 			}
 
-			// TODO: Better if it removes from main component
+			// TODO: Better if it removes from main component DONE
 
-			node.name = node.name.replace(/<slot>$/, "")
+			if (node.type === "INSTANCE") {
+				node.mainComponent.name = node.mainComponent.name.replace(/<slot>$/, "")
+				node.mainComponent.name = node.mainComponent.name.trim()
+				node.name = node.name.replace(/<slot>$/, "")
+				node.name = node.name.trim()
+
+			}
+
 
 			// TODO: Count how many slots left before removing relaunch data
 			var parentComponent = getComponentParent(node)
