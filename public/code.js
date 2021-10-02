@@ -654,8 +654,15 @@ function removeSlot(node, traverseChildren = true) {
         }
         // TODO: Better if it removes from main component DONE
         if (node.type === "INSTANCE") {
-            node.mainComponent.name = node.mainComponent.name.replace(/<slot>$/, "");
-            node.mainComponent.name = node.mainComponent.name.trim();
+            // console.log(node.mainComponent.name.replace(/<slot>$/, ""))
+            var newName;
+            newName = node.mainComponent.name.replace(/<slot>$/, "");
+            newName = newName.trim();
+            if (newName !== node.mainComponent.name) {
+                node.mainComponent.name = newName;
+            }
+            // node.mainComponent.name = node.mainComponent.name.replace(/<slot>$/, "")
+            // node.mainComponent.name = node.mainComponent.name.trim()
             node.name = node.name.replace(/<slot>$/, "");
             node.name = node.name.trim();
         }
