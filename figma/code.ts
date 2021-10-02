@@ -176,6 +176,8 @@ function makeComponent(node, action = "make") {
 
 	var origNode = node
 	var container = node.parent
+	var nodeX = node.x
+	var nodeY = node.y
 	var origNodeIndex = getNodeIndex(node)
 	var clonedNode;
 	var discardNodes = []
@@ -271,13 +273,16 @@ function makeComponent(node, action = "make") {
 			// }
 
 		}
-		copyPaste(node, component, { include: ['layoutAlign', 'layoutGrow', 'name'] })
+		copyPaste(node, component, { include: ['layoutAlign', 'layoutGrow', 'name', 'x', 'y'] })
+
 		component.appendChild(node)
 	}
 
 	if (action === "make") {
 		var instance = component.createInstance()
-		copyPaste(node, instance, { include: ['layoutAlign', 'layoutGrow'] })
+		copyPaste(node, instance, { include: ['layoutAlign', 'layoutGrow', 'constraints', 'x', 'y'] })
+		node.x = 0
+		node.y = 0
 		container.insertChild(origNodeIndex, instance)
 		if (origNode.type === "INSTANCE" && origNode) origNode.remove()
 		newSel.push(instance)
@@ -358,13 +363,15 @@ function countSlots(nodes) {
 
 		var node = nodes[i]
 
-		if (JSON.parse(node.getPluginData("isSlot"))) {
+		if (getPluginData(node, "isSlot")) {
 			countNumberSlots += 1
 		}
 		if (node.children) {
 			countSlots(node.children)
 		}
 	}
+
+	console.log(countNumberSlots)
 
 	return countNumberSlots
 
@@ -509,7 +516,7 @@ function editSlot(node) {
 
 
 				// FIXME: positioning
-			setPosition(node)
+				setPosition(node)
 				if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
 					component.resize(node.width, node.height)
 					component.layoutAlign = nodeLayoutAlign
@@ -521,12 +528,17 @@ function editSlot(node) {
 				// component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
 			}, 100)
 
+			// Not needed now? Not sure why
 			// To avoid blinking when going to edit
-			setTimeout(() => {
-				if (figma.getNodeById(node.id)) {
-					node.opacity = 0
-				}
-			}, 100)
+			// setTimeout(() => {
+			// 	if (figma.getNodeById(node.id)) {
+			// 		node.opacity = 0
+			// 	}
+			// }, 100)
+
+			if (figma.getNodeById(node.id)) {
+				node.opacity = 0
+			}
 
 			figma.on('close', () => {
 
