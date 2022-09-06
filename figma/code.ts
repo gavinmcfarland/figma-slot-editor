@@ -20,7 +20,17 @@ import plugma from 'plugma'
 // TODO: Check if mainComponent deleted and if so, remove instance DONE/ERROR can't fix
 // FIXME: If slots are invisible then don't show when editing? DONE
 
-import { setPluginData, isInsideInstance, updatePluginData, updateClientStorageAsync, copyPaste, removeChildren, getClientStorageAsync, ungroup, setClientStorageAsync} from '@figlets/helpers'
+import {
+	setPluginData,
+	isInsideInstance,
+	updatePluginData,
+	updateClientStorageAsync,
+	copyPaste,
+	removeChildren,
+	getClientStorageAsync,
+	ungroup,
+	setClientStorageAsync,
+} from '@figlets/helpers'
 
 var selectionSet = false
 var origSel = figma.currentPage.selection
@@ -50,12 +60,9 @@ function findComponentById(id) {
 
 	// }
 
-
 	// return component || false
 
 	var node = figma.getNodeById(id)
-
-
 
 	if (node) {
 		if (node.parent === null || node.parent.parent === null) {
@@ -63,17 +70,14 @@ function findComponentById(id) {
 			// If component in storage then restore it
 			figma.currentPage.appendChild(node)
 			return node
-		}
-		else {
+		} else {
 			// figma.root.setPluginData("cellComponentState", "removed")
 			return node
 		}
-	}
-	else {
+	} else {
 		// figma.root.setPluginData("cellComponentState", "deleted")
 		return null
 	}
-
 }
 
 const isPageNode = (node: BaseNode): node is PageNode => {
@@ -111,7 +115,7 @@ function isPartOfComponent(node: SceneNode): boolean {
 }
 
 function findTopInstance(node) {
-	if (node.type === "PAGE") return null
+	if (node.type === 'PAGE') return null
 	if (isPartOfInstance(node)) {
 		return findTopInstance(node.parent)
 	} else {
@@ -120,24 +124,21 @@ function findTopInstance(node) {
 }
 
 function getComponentParent(node) {
-	if (node.type === "COMPONENT") return node
-	if (node.type === "PAGE") return null
-	if (node?.parent?.type === "COMPONENT") {
+	if (node.type === 'COMPONENT') return node
+	if (node.type === 'PAGE') return null
+	if (node?.parent?.type === 'COMPONENT') {
 		return node.parent
-	}
-	else {
+	} else {
 		return getComponentParent(node?.parent)
 	}
 }
 
-
 function getSlotParent(node) {
-	if (getPluginData(node, "isSlotParent")) return node
-	if (node.type === "PAGE") return null
-	if (getPluginData(node?.parent, "isSlotParent")) {
+	if (getPluginData(node, 'isSlotParent')) return node
+	if (node.type === 'PAGE') return null
+	if (getPluginData(node?.parent, 'isSlotParent')) {
 		return node.parent
-	}
-	else {
+	} else {
 		return getSlotParent(node?.parent)
 	}
 }
@@ -158,12 +159,21 @@ const getRelativePosition = (
 	node: BaseNode & LayoutMixin,
 	relativeNode?: BaseNode & LayoutMixin
 ) => {
-	relativeNode = relativeNode || (getTopLevelParent(node) as BaseNode & LayoutMixin)
+	relativeNode =
+		relativeNode || (getTopLevelParent(node) as BaseNode & LayoutMixin)
 	return {
 		x: Math.abs(
-			Math.round(relativeNode.absoluteTransform[0][2] - node.absoluteTransform[0][2])
+			Math.round(
+				relativeNode.absoluteTransform[0][2] -
+					node.absoluteTransform[0][2]
+			)
 		),
-		y: Math.abs(Math.round(relativeNode.absoluteTransform[1][2] - node.absoluteTransform[1][2]))
+		y: Math.abs(
+			Math.round(
+				relativeNode.absoluteTransform[1][2] -
+					node.absoluteTransform[1][2]
+			)
+		),
 	}
 }
 
@@ -171,15 +181,13 @@ function getNodeIndex(node: SceneNode): number {
 	return node.parent.children.indexOf(node)
 }
 
-function makeComponent(node, action = "make") {
-
-
+function makeComponent(node, action = 'make') {
 	var origNode = node
 	var container = node.parent
 	var nodeX = node.x
 	var nodeY = node.y
 	var origNodeIndex = getNodeIndex(node)
-	var clonedNode;
+	var clonedNode
 	var discardNodes = []
 
 	// if (action === "make") {
@@ -208,162 +216,133 @@ function makeComponent(node, action = "make") {
 	// }
 	// else {
 
-
 	// Make unique
 	// Create a unique instance by recreating it as a component
 	const component = figma.createComponent()
 
 	component.setRelaunchData({
-		'editSlot': 'Edit the selected slot',
-		'removeSlot': 'Remove the selected slot'
+		editSlot: 'Edit the selected slot',
+		removeSlot: 'Remove the selected slot',
 	})
 
-	setPluginData(component, "isSlot", true)
+	setPluginData(component, 'isSlot', true)
 	component.resizeWithoutConstraints(node.width, node.height)
 
-
-	if (node.type === "FRAME" || node.type === "INSTANCE") {
-
-
+	if (node.type === 'FRAME' || node.type === 'INSTANCE') {
 		copyPaste(node, component)
 
 		// If it's an instance, it needs to be detached so it's children can be moved to component
-		if (node.type === "INSTANCE") {
+		if (node.type === 'INSTANCE') {
 			clonedNode = node.clone()
 			node = clonedNode.detachInstance()
-
 		}
 		for (const child of node.children) {
 			component.appendChild(child)
 		}
 
-
-
-		if (action === "edit") {
-			if (origNode.type === "INSTANCE") {
+		if (action === 'edit') {
+			if (origNode.type === 'INSTANCE') {
 				origNode.swapComponent(component)
 			}
 		}
 
-
 		// }
 
 		// newSel.push(origNode)
-
-
-	}
-	else {
-
+	} else {
 		// If it's not a frame or instance just add it to container
 
-		if (node.type === "TEXT") {
-			component.layoutMode = "VERTICAL"
-			if (node.textAutoResize === "HEIGHT") {
-				component.primaryAxisSizingMode = "AUTO"
+		if (node.type === 'TEXT') {
+			component.layoutMode = 'VERTICAL'
+			if (node.textAutoResize === 'HEIGHT') {
+				component.primaryAxisSizingMode = 'AUTO'
 			}
 
-			if (node.textAutoResize === "WIDTH_AND_HEIGHT") {
-				component.primaryAxisSizingMode = "AUTO"
-				component.counterAxisSizingMode = "AUTO"
+			if (node.textAutoResize === 'WIDTH_AND_HEIGHT') {
+				component.primaryAxisSizingMode = 'AUTO'
+				component.counterAxisSizingMode = 'AUTO'
 			}
 
 			// if (node.textAutoResize === "WIDTH_AND_HEIGHT") {
 			// 	height = "hug-contents"
 			// 	width = "hug-contents"
 			// }
-
 		}
-		copyPaste(node, component, { include: ['layoutAlign', 'layoutGrow', 'name', 'x', 'y'] })
+		copyPaste(node, component, {
+			include: ['layoutAlign', 'layoutGrow', 'name', 'x', 'y'],
+		})
 
 		component.appendChild(node)
 	}
 
-	if (action === "make") {
+	if (action === 'make') {
 		var instance = component.createInstance()
-		copyPaste(node, instance, { include: ['layoutAlign', 'layoutGrow', 'constraints', 'x', 'y'] })
+		copyPaste(node, instance, {
+			include: ['layoutAlign', 'layoutGrow', 'constraints', 'x', 'y'],
+		})
 		node.x = 0
 		node.y = 0
 		container.insertChild(origNodeIndex, instance)
-		if (origNode.type === "INSTANCE" && origNode) origNode.remove()
+		if (origNode.type === 'INSTANCE' && origNode) origNode.remove()
 		newSel.push(instance)
 	}
 
-	if (action !== "edit") {
-// Create new instance and replace with existing one
-	// var instance = component.createInstance()
-
-
-	// If have to create a new container then copy the layout properties across to the instance
-	// if (!(node.type === "FRAME" || node.type === "INSTANCE")) {
-	// 	copyPaste(node, instance, { include: ['layoutAlign', 'layoutGrow', 'primaryAxisSizingMode', 'counterAxisSizingMode'] })
-	// }
-
-	// if (origNode.type === "INSTANCE") {
-	// 	instance = origNode.swapComponent(component)
-	// }
-
-	// if (action === "make") {
-	// 	container.insertChild(origNodeIndex, instance)
-	// }
+	if (action !== 'edit') {
+		// Create new instance and replace with existing one
+		// var instance = component.createInstance()
+		// If have to create a new container then copy the layout properties across to the instance
+		// if (!(node.type === "FRAME" || node.type === "INSTANCE")) {
+		// 	copyPaste(node, instance, { include: ['layoutAlign', 'layoutGrow', 'primaryAxisSizingMode', 'counterAxisSizingMode'] })
+		// }
+		// if (origNode.type === "INSTANCE") {
+		// 	instance = origNode.swapComponent(component)
+		// }
+		// if (action === "make") {
+		// 	container.insertChild(origNodeIndex, instance)
+		// }
 		// if (action === "make") {
 		// 	newSel.push(instance)
 		// }
 		// }
-
 		// newSel.push(instance)
-
-
-
 		// console.log(node.name)
-
 		// if (node.type === "FRAME" || node.type === "INSTANCE") {
-
 		// }
-
 		// node.remove()
-
 		// if (tempNode) {
 		// 	instance.remove()
 		// }
-
-
 		// console.log(node.name)
 	}
 
-	if (node.type === "FRAME") {
+	if (node.type === 'FRAME') {
 		node.remove()
 	}
-
 
 	// for (var i = 0; i < discardNodes.length; i++) {
 	// 	var node = discardNodes[i]
 	// 	node.remove()
 	// }
 
-
 	component.remove()
 
-
-		return {
-			component, origNode
-		}
-		// }
+	return {
+		component,
+		origNode,
+	}
 	// }
-
+	// }
 }
-
 
 var countNumberSlots = 0
 var numberSlots = 0
 
 function countSlots(nodes) {
-
 	// if (sel.length > 0) {
 	for (var i = 0; i < nodes.length; i++) {
-
 		var node = nodes[i]
 
-		if (getPluginData(node, "isSlot")) {
+		if (getPluginData(node, 'isSlot')) {
 			countNumberSlots += 1
 		}
 		if (node.children) {
@@ -374,72 +353,60 @@ function countSlots(nodes) {
 	console.log(countNumberSlots)
 
 	return countNumberSlots
-
-
 }
 
 function removeSlot(node, traverseChildren = true) {
-
 	var origSel = node
 	var nodes = putValuesIntoArray(node)
 
 	// if (sel.length > 0) {
-		for (var i = 0; i < nodes.length; i++) {
+	for (var i = 0; i < nodes.length; i++) {
+		let node = nodes[i]
 
-			let node = nodes[i]
-
-
-
-			if (getPluginData(node, "isSlot")) {
-				numberSlots += 1
-				traverseChildren = false
-			}
-
-			// TODO: Better if it removes from main component DONE
-
-			if (node.type === "INSTANCE") {
-				// console.log(node.mainComponent.name.replace(/<slot>$/, ""))
-				var newName;
-				newName = node.mainComponent.name.replace(/<slot>$/, "")
-				newName = newName.trim()
-				if (newName !== node.mainComponent.name) {
-					node.mainComponent.name = newName
-				}
-
-				// node.mainComponent.name = node.mainComponent.name.replace(/<slot>$/, "")
-				// node.mainComponent.name = node.mainComponent.name.trim()
-				node.name = node.name.replace(/<slot>$/, "")
-				node.name = node.name.trim()
-
-			}
-
-
-			// TODO: Count how many slots left before removing relaunch data
-			var parentComponent = getComponentParent(node)
-
-
-			setPluginData(node, "isSlot", "")
-
-			if (traverseChildren) {
-				if (node.children) {
-					removeSlot(node.children)
-				}
-			}
-
-			// let count = countSlots([parentComponent])
-
-			if (node.id !== parentComponent?.id) {
-				node.setRelaunchData({})
-
-				// console.log(count)
-				// if (count < 1) {
-				// 	parentComponent.setRelaunchData({})
-				// }
-			}
-
-
-
+		if (getPluginData(node, 'isSlot')) {
+			numberSlots += 1
+			traverseChildren = false
 		}
+
+		// TODO: Better if it removes from main component DONE
+
+		if (node.type === 'INSTANCE') {
+			// console.log(node.mainComponent.name.replace(/<slot>$/, ""))
+			var newName
+			newName = node.mainComponent.name.replace(/<slot>$/, '')
+			newName = newName.trim()
+			if (newName !== node.mainComponent.name) {
+				node.mainComponent.name = newName
+			}
+
+			// node.mainComponent.name = node.mainComponent.name.replace(/<slot>$/, "")
+			// node.mainComponent.name = node.mainComponent.name.trim()
+			node.name = node.name.replace(/<slot>$/, '')
+			node.name = node.name.trim()
+		}
+
+		// TODO: Count how many slots left before removing relaunch data
+		var parentComponent = getComponentParent(node)
+
+		setPluginData(node, 'isSlot', '')
+
+		if (traverseChildren) {
+			if (node.children) {
+				removeSlot(node.children)
+			}
+		}
+
+		// let count = countSlots([parentComponent])
+
+		if (node.id !== parentComponent?.id) {
+			node.setRelaunchData({})
+
+			// console.log(count)
+			// if (count < 1) {
+			// 	parentComponent.setRelaunchData({})
+			// }
+		}
+	}
 	// }
 
 	return numberSlots
@@ -453,7 +420,7 @@ function editSlot(node) {
 	for (var i = 0; i < nodes.length; i++) {
 		let node = nodes[i]
 
-		if (getPluginData(node, "isSlot")) {
+		if (getPluginData(node, 'isSlot')) {
 			// console.log(node.name)
 
 			nSlotsFound += 1
@@ -469,16 +436,14 @@ function editSlot(node) {
 			let nodeOrigParent = node.parent
 			let origNodeVisible = node.visible
 
-
 			// Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
 			// var component = findComponentById(node.mainComponent.id)
 
 			// FIXME: Maybe instance is not the same node when new node is made
-			let { component } = makeComponent(node, "edit")
+			let { component } = makeComponent(node, 'edit')
 
 			// Set the visibility to hidden if the instance is hidden by default (ie don't show slot)
 			component.visible = origNodeVisible
-
 
 			// figma.viewport.scrollAndZoomIntoView(component)
 
@@ -492,32 +457,32 @@ function editSlot(node) {
 				figma.currentPage.appendChild(component)
 			}
 
-
-
 			function setPosition(node) {
-				if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
+				if (
+					figma.getNodeById(node.id) &&
+					figma.getNodeById(component.id)
+				) {
 					var relativePosition = getRelativePosition(node)
 					component.x = getTopLevelParent(node).x + relativePosition.x
 					component.y = getTopLevelParent(node).y + relativePosition.y
 				}
-
 			}
 
 			setPosition(node)
 
 			setInterval(() => {
-
-
-					// If component removed by user, then hide the instance
-					if (component.parent === null) {
-						// Keep getting error message when changing node visibility
-						node.visible = false
-					}
-
+				// If component removed by user, then hide the instance
+				if (component.parent === null) {
+					// Keep getting error message when changing node visibility
+					node.visible = false
+				}
 
 				// FIXME: positioning
 				setPosition(node)
-				if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
+				if (
+					figma.getNodeById(node.id) &&
+					figma.getNodeById(component.id)
+				) {
 					component.resize(node.width, node.height)
 					component.layoutAlign = nodeLayoutAlign
 					component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
@@ -541,7 +506,6 @@ function editSlot(node) {
 			}
 
 			figma.on('close', () => {
-
 				if (figma.getNodeById(node.id)) {
 					node.opacity = nodeOpacity
 					// Probably not needed now that they are applied when resized at set interval
@@ -552,27 +516,24 @@ function editSlot(node) {
 				// Need to find component because user may have deleted/undone it
 				let freshComponent = findComponentById(component.id)
 				if (freshComponent && freshComponent?.parent !== null) {
-					if (node.type !== "COMPONENT") {
+					if (node.type !== 'COMPONENT') {
 						freshComponent.remove()
 					}
 				}
 
 				// FIXME: needs some work. Should loop through each node in original selection to see if they still exist
 				if (figma.getNodeById(origSel[0].id)) {
-					if (node.type !== "COMPONENT") {
+					if (node.type !== 'COMPONENT') {
 						figma.currentPage.selection = origSel
 					}
 				}
 
 				// handle.cancel()
-
 			})
-		}
-		else {
+		} else {
 			if (node.children) {
-					editSlot(node.children)
+				editSlot(node.children)
 			}
-
 		}
 	}
 
@@ -580,133 +541,105 @@ function editSlot(node) {
 }
 
 plugma((plugin) => {
-
 	plugin.ui = {
 		html: __html__,
 		width: 268,
-		height: 504
+		height: 504,
 	}
 
 	plugin.command('makeSlot', ({ ui, data }) => {
-
 		var sel = figma.currentPage.selection
 		var numberSlotsMade = 0
 
-
-
 		if (countSlots(sel) > 1) {
 			figma.closePlugin(`Already contains ${numberSlots} slots`)
-		}
-		else if (numberSlots === 1) {
+		} else if (numberSlots === 1) {
 			figma.closePlugin(`Already contains ${numberSlots} slot`)
-		}
-		else {
+		} else {
 			for (var i = 0; i < sel.length; i++) {
 				var node = sel[i]
 
 				// Cannot make when part of an instance and part of component
-				var isAwkward = (isPartOfInstance(node))
+				var isAwkward = isPartOfInstance(node)
 
-				if (getPluginData(node, "isSlot") !== true) {
-
-					if (!isAwkward && ((isPartOfComponent(node)))) {
-
-
-
-
+				if (getPluginData(node, 'isSlot') !== true) {
+					if (!isAwkward && isPartOfComponent(node)) {
 						var parentComponent = getComponentParent(node)
 
 						if (parentComponent) {
-							setPluginData(parentComponent, "isSlotParent", true)
+							setPluginData(parentComponent, 'isSlotParent', true)
 							parentComponent.setRelaunchData({
-								'editSlot': 'Edit slots on this instance',
-								'removeSlot': 'Remove slots on this instance'
+								editSlot: 'Edit slots on this instance',
+								removeSlot: 'Remove slots on this instance',
 							})
 						}
 
 						var { component } = makeComponent(node)
 
-
-
-						component.name = component.name + " <slot>"
+						component.name = component.name + ' <slot>'
 						// newInstance.name = component.name + " <slot>"
 
-						setPluginData(component, "isSlot", true)
+						setPluginData(component, 'isSlot', true)
 
 						if (parentComponent) {
-
-							if (node.type !== "INSTANCE") {
+							if (node.type !== 'INSTANCE') {
 								component.remove()
 							}
-
 						}
 
 						numberSlotsMade += 1
-					}
-					else {
+					} else {
 						if (isAwkward) {
-							figma.notify("Edit main component to make slot")
+							figma.notify('Edit main component to make slot')
+						} else {
+							figma.notify('Slot must be inside a component')
 						}
-						else {
-							figma.notify("Slot must be inside a component")
-						}
-
 					}
+				} else {
+					figma.notify('Already a slot')
 				}
-				else {
-					figma.notify("Already a slot")
-				}
-
 			}
-
-
 
 			if (numberSlotsMade > 1) {
 				figma.currentPage.selection = newSel
 				figma.notify(`${numberSlotsMade} slots made`)
-
-			}
-			else if (numberSlotsMade === 1) {
+			} else if (numberSlotsMade === 1) {
 				figma.currentPage.selection = newSel
 				figma.notify(`${numberSlotsMade} slot made`)
-
 			}
 		}
 
-
-
 		figma.closePlugin()
-
-
 	})
 
 	plugin.command('editSlot', ({ ui, data }) => {
-
 		var sel = figma.currentPage.selection
 
-
-
 		if (sel.length > 0) {
-			const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
+			const handle = figma.notify('Editing slots...', {
+				button: {
+					text: 'Done',
+					action: () => {
+						figma.closePlugin()
+						return true
+					},
+				},
+				timeout: 99999999999,
+			})
 			var nSlotsFound = editSlot(sel)
 
 			if (nSlotsFound > 0) {
-
 				figma.on('close', () => {
 					handle.cancel()
 				})
 			}
 			if (nSlotsFound === 0) {
 				handle.cancel()
-				figma.closePlugin("No slots found")
+				figma.closePlugin('No slots found')
 			}
-
+		} else if (sel.length === 0) {
+			figma.closePlugin('Please select a slot or instance with slots')
 		}
-		else if (sel.length === 0) {
-			figma.closePlugin("Please select a slot or instance with slots")
-		}
-
-
 	})
 
 	plugin.command('removeSlot', () => {
@@ -728,33 +661,21 @@ plugma((plugin) => {
 				if (count < 1) {
 					parent.setRelaunchData({})
 				}
-			// }
+				// }
 			}
-
 		}
-
 
 		if (nSlotsRemoved > 1) {
 			figma.closePlugin(`${nSlotsRemoved} slots removed`)
-		}
-
-		else if (nSlotsRemoved === 1) {
+		} else if (nSlotsRemoved === 1) {
 			figma.closePlugin(`${nSlotsRemoved} slot removed`)
-		}
-		else {
+		} else {
 			figma.closePlugin(`No slots found`)
 		}
 
-
 		figma.closePlugin()
-
-
 	})
-
-
 })
-
-
 
 // 	plugin.command('createSlot', ({ ui, data }) => {
 
@@ -784,4 +705,3 @@ plugma((plugin) => {
 // 	// })
 
 // })
-
