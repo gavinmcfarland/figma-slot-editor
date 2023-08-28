@@ -22,5 +22,8 @@
   "relaunchButtons": [
       {"command": "editSlot", "name": "Edit Slot", "multipleSelection": true},
       {"command": "removeSlot", "name": "Remove Slot", "multipleSelection": true}
-    ]
+    ],
+    "networkAccess": {
+      "allowedDomains": ["none"]
+    }
 }
