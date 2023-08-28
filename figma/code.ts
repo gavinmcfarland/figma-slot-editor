@@ -232,10 +232,15 @@ function makeComponent(node, action = 'make') {
 		copyPaste(node, component)
 
 		// If it's an instance, it needs to be detached so it's children can be moved to component
+
 		if (node.type === 'INSTANCE') {
 			clonedNode = node.clone()
 			node = clonedNode.detachInstance()
 		}
+
+		console.log('-----', node.name, component)
+
+		// Move children of clonedNode over to component
 		for (const child of node.children) {
 			component.appendChild(child)
 		}
@@ -420,7 +425,7 @@ function editSlot(node) {
 	for (var i = 0; i < nodes.length; i++) {
 		let node = nodes[i]
 
-		if (getPluginData(node, 'isSlot')) {
+		if (getPluginData(node, 'isSlot') && node.type === 'INSTANCE') {
 			// console.log(node.name)
 
 			nSlotsFound += 1
@@ -539,6 +544,8 @@ function editSlot(node) {
 
 	return nSlotsFound
 }
+
+console.clear()
 
 plugma((plugin) => {
 	plugin.ui = {
