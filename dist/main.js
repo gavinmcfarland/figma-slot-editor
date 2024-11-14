@@ -1,5 +1,5 @@
 // Add the event listener
-let runtimeData = {"mode":"development","output":"dist","websockets":false,"debug":false,"command":"dev","instanceId":"gfW-QB9scjuwKUevpSxfh","port":3046,"manifest":{"name":"Slot Editor","id":"1017768834174399811","api":"1.0.0","main":"src/main.ts","editorType":["figma"],"menu":[{"name":"Make Slot","command":"makeSlot"},{"name":"Edit Slot","command":"editSlot"},{"name":"Remove Slot","command":"removeSlot"}],"relaunchButtons":[{"command":"editSlot","name":"Edit Slot","multipleSelection":true},{"command":"removeSlot","name":"Remove Slot","multipleSelection":true}],"networkAccess":{"allowedDomains":["none"],"devAllowedDomains":["http://localhost:3046","ws://localhost:9001"]}}};
+let runtimeData = {"mode":"development","output":"dist","websockets":false,"debug":false,"command":"dev","instanceId":"Q7FoEb_VYnzCR8WF8tLU9","port":4237,"manifest":{"name":"Slot Editor","id":"1017768834174399811","api":"1.0.0","main":"src/main.ts","editorType":["figma"],"menu":[{"name":"Make Slot","command":"makeSlot"},{"name":"Edit Slot","command":"editSlot"},{"name":"Remove Slot","command":"removeSlot"}],"relaunchButtons":[{"command":"editSlot","name":"Edit Slot","multipleSelection":true},{"command":"removeSlot","name":"Remove Slot","multipleSelection":true}],"networkAccess":{"allowedDomains":["none"],"devAllowedDomains":["http://localhost:4237","ws://localhost:9001"]}}};
 
 
 async function getCommandHistory() {
@@ -465,22 +465,29 @@ function copyPaste(source, target, ...args) {
 function setPluginData(node, key, data) {
   node.setPluginData(key, JSON.stringify(data));
 }
-var selectionSet = false;
-var origSel = figma.currentPage.selection;
-var newSel = [];
+const origSel = figma.currentPage.selection;
+const newSel = [];
+let selectionSet = false;
+let countNumberSlots = 0;
+let numberSlots = 0;
+let nSlotsFound = 0;
 function putValuesIntoArray(value) {
   return Array.isArray(value) ? value : [value];
 }
 function getPluginData(node, key) {
-  var data = node.getPluginData(key);
+  const data = node.getPluginData(key);
   if (data) return JSON.parse(data);
 }
 function findComponentById(id) {
-  var node = figma.getNodeById(id);
+  const node = figma.getNodeById(id);
   if (node) {
     if (node.parent === null || node.parent.parent === null) {
-      figma.currentPage.appendChild(node);
-      return node;
+      if ("appendChild" in figma.currentPage && node.type !== "PAGE") {
+        figma.currentPage.appendChild(node);
+        return node;
+      } else {
+        return node;
+      }
     } else {
       return node;
     }
@@ -555,13 +562,18 @@ const getRelativePosition = (node, relativeNode) => {
 function getNodeIndex(node) {
   return node.parent.children.indexOf(node);
 }
+function setPosition(node, component) {
+  if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
+    const relativePosition = getRelativePosition(node);
+    component.x = getTopLevelParent(node).x + relativePosition.x;
+    component.y = getTopLevelParent(node).y + relativePosition.y;
+  }
+}
 function makeComponent(node, action = "make") {
-  var origNode = node;
-  var container = node.parent;
-  node.x;
-  node.y;
-  var origNodeIndex = getNodeIndex(node);
-  var clonedNode;
+  const origNode = node;
+  const container = node.parent;
+  const origNodeIndex = getNodeIndex(node);
+  let clonedNode;
   const component = figma.createComponent();
   component.setRelaunchData({
     editSlot: "Edit the selected slot",
@@ -601,7 +613,7 @@ function makeComponent(node, action = "make") {
     component.appendChild(node);
   }
   if (action === "make") {
-    var instance = component.createInstance();
+    const instance = component.createInstance();
     copyPaste(node, instance, {
       include: ["layoutAlign", "layoutGrow", "constraints", "x", "y"]
     });
@@ -620,11 +632,9 @@ function makeComponent(node, action = "make") {
     origNode
   };
 }
-var countNumberSlots = 0;
-var numberSlots = 0;
 function countSlots(nodes) {
-  for (var i = 0; i < nodes.length; i++) {
-    var node = nodes[i];
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
     if (getPluginData(node, "isSlot")) {
       countNumberSlots += 1;
     }
@@ -636,15 +646,15 @@ function countSlots(nodes) {
   return countNumberSlots;
 }
 function removeSlot(node, traverseChildren = true) {
-  var nodes = putValuesIntoArray(node);
-  for (var i = 0; i < nodes.length; i++) {
-    let node2 = nodes[i];
+  const nodes = putValuesIntoArray(node);
+  for (let i = 0; i < nodes.length; i++) {
+    const node2 = nodes[i];
     if (getPluginData(node2, "isSlot")) {
       numberSlots += 1;
       traverseChildren = false;
     }
     if (node2.type === "INSTANCE") {
-      var newName;
+      let newName;
       newName = node2.mainComponent.name.replace(/<slot>$/, "");
       newName = newName.trim();
       if (newName !== node2.mainComponent.name) {
@@ -653,7 +663,7 @@ function removeSlot(node, traverseChildren = true) {
       node2.name = node2.name.replace(/<slot>$/, "");
       node2.name = node2.name.trim();
     }
-    var parentComponent = getComponentParent(node2);
+    const parentComponent = getComponentParent(node2);
     setPluginData(node2, "isSlot", "");
     if (traverseChildren) {
       if (node2.children) {
@@ -666,28 +676,18 @@ function removeSlot(node, traverseChildren = true) {
   }
   return numberSlots;
 }
-var nSlotsFound = 0;
 function editSlot(node) {
-  var nodes = putValuesIntoArray(node);
-  for (var i = 0; i < nodes.length; i++) {
-    let node2 = nodes[i];
+  const nodes = putValuesIntoArray(node);
+  for (let i = 0; i < nodes.length; i++) {
+    const node2 = nodes[i];
     if (getPluginData(node2, "isSlot") && node2.type === "INSTANCE") {
-      let setPosition = function(node3) {
-        if (figma.getNodeById(node3.id) && figma.getNodeById(component.id)) {
-          var relativePosition = getRelativePosition(node3);
-          component.x = getTopLevelParent(node3).x + relativePosition.x;
-          component.y = getTopLevelParent(node3).y + relativePosition.y;
-        }
-      };
       nSlotsFound += 1;
-      let nodeOpacity = node2.opacity;
-      let nodeLayoutAlign = node2.layoutAlign;
-      let nodePrimaryAxisSizingMode = node2.primaryAxisSizingMode;
-      let nodeCounterAxisSizingMode = node2.counterAxisSizingMode;
-      node2.layoutGrow;
-      node2.parent;
-      let origNodeVisible = node2.visible;
-      let { component } = makeComponent(node2, "edit");
+      const nodeOpacity = node2.opacity;
+      const nodeLayoutAlign = node2.layoutAlign;
+      const nodePrimaryAxisSizingMode = node2.primaryAxisSizingMode;
+      const nodeCounterAxisSizingMode = node2.counterAxisSizingMode;
+      const origNodeVisible = node2.visible;
+      const { component } = makeComponent(node2, "edit");
       component.visible = origNodeVisible;
       if (selectionSet === false) {
         figma.currentPage.selection = [];
@@ -696,12 +696,12 @@ function editSlot(node) {
       if (figma.getNodeById(component.id)) {
         figma.currentPage.appendChild(component);
       }
-      setPosition(node2);
+      setPosition(node2, component);
       setInterval(() => {
         if (component.parent === null) {
           node2.visible = false;
         }
-        setPosition(node2);
+        setPosition(node2, component);
         if (figma.getNodeById(node2.id) && figma.getNodeById(component.id)) {
           component.resize(node2.width, node2.height);
           component.layoutAlign = nodeLayoutAlign;
@@ -716,7 +716,7 @@ function editSlot(node) {
         if (figma.getNodeById(node2.id)) {
           node2.opacity = nodeOpacity;
         }
-        let freshComponent = findComponentById(component.id);
+        const freshComponent = findComponentById(component.id);
         if (freshComponent && (freshComponent == null ? void 0 : freshComponent.parent) !== null) {
           if (node2.type !== "COMPONENT") {
             freshComponent.remove();
@@ -739,19 +739,19 @@ function editSlot(node) {
 console.clear();
 function plugmaMain() {
   if (figma.command === "makeSlot") {
-    var sel = figma.currentPage.selection;
-    var numberSlotsMade = 0;
+    const sel = figma.currentPage.selection;
+    let numberSlotsMade = 0;
     if (countSlots(sel) > 1) {
       figma.closePlugin(`Already contains ${numberSlots} slots`);
     } else if (numberSlots === 1) {
       figma.closePlugin(`Already contains ${numberSlots} slot`);
     } else {
-      for (var i = 0; i < sel.length; i++) {
-        var node = sel[i];
-        var isAwkward = isPartOfInstance(node);
+      for (let i = 0; i < sel.length; i++) {
+        const node = sel[i];
+        const isAwkward = isPartOfInstance(node);
         if (getPluginData(node, "isSlot") !== true) {
           if (!isAwkward && isPartOfComponent(node)) {
-            var parentComponent = getComponentParent(node);
+            const parentComponent = getComponentParent(node);
             if (parentComponent) {
               setPluginData(parentComponent, "isSlotParent", true);
               parentComponent.setRelaunchData({
@@ -759,7 +759,7 @@ function plugmaMain() {
                 removeSlot: "Remove slots on this instance"
               });
             }
-            var { component } = makeComponent(node);
+            const { component } = makeComponent(node);
             component.name = component.name + " <slot>";
             setPluginData(component, "isSlot", true);
             if (parentComponent) {
@@ -790,7 +790,7 @@ function plugmaMain() {
     figma.closePlugin();
   }
   if (figma.command === "editSlot") {
-    var sel = figma.currentPage.selection;
+    const sel = figma.currentPage.selection;
     if (sel.length > 0) {
       const handle = figma.notify("Editing slots...", {
         button: {
@@ -802,7 +802,7 @@ function plugmaMain() {
         },
         timeout: 99999999999
       });
-      var nSlotsFound2 = editSlot(sel);
+      const nSlotsFound2 = editSlot(sel);
       if (nSlotsFound2 > 0) {
         figma.on("close", () => {
           handle.cancel();
@@ -817,12 +817,12 @@ function plugmaMain() {
     }
   }
   if (figma.command === "removeSlot") {
-    var nSlotsRemoved = removeSlot(figma.currentPage.selection);
-    for (var i = 0; i < figma.currentPage.selection.length; i++) {
-      var node = figma.currentPage.selection[i];
-      var parent = getComponentParent(node) || getSlotParent(node);
+    const nSlotsRemoved = removeSlot(figma.currentPage.selection);
+    for (let i = 0; i < figma.currentPage.selection.length; i++) {
+      const node = figma.currentPage.selection[i];
+      const parent = getComponentParent(node) || getSlotParent(node);
       if (parent) {
-        let count = countSlots([parent]);
+        const count = countSlots([parent]);
         if (count < 1) {
           parent.setRelaunchData({});
         }

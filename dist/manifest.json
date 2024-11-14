@@ -37,7 +37,7 @@
       "none"
     ],
     "devAllowedDomains": [
-      "http://localhost:3046",
+      "http://localhost:4237",
       "ws://localhost:9001"
     ]
   }
