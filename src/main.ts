@@ -16,7 +16,6 @@ const newSel = []
 let selectionSet = false
 let countNumberSlots = 0
 let numberSlots = 0
-let nSlotsFound = 0
 
 function putValuesIntoArray(value) {
 	return Array.isArray(value) ? value : [value]
@@ -27,8 +26,8 @@ function getPluginData(node: BaseNode, key: string) {
 	if (data) return JSON.parse(data)
 }
 
-function findComponentById(id) {
-	const node = figma.getNodeById(id)
+async function findComponentById(id) {
+	const node = await figma.getNodeByIdAsync(id)
 
 	if (node) {
 		if (node.parent === null || node.parent.parent === null) {
@@ -138,8 +137,11 @@ function getNodeIndex(node: SceneNode): number {
 	return node.parent.children.indexOf(node)
 }
 
-function setPosition(node, component) {
-	if (figma.getNodeById(node.id) && figma.getNodeById(component.id)) {
+async function setPosition(node, component) {
+	if (
+		(await figma.getNodeByIdAsync(node.id)) &&
+		(await figma.getNodeByIdAsync(component.id))
+	) {
 		const relativePosition = getRelativePosition(node)
 		component.x = getTopLevelParent(node).x + relativePosition.x
 		component.y = getTopLevelParent(node).y + relativePosition.y
@@ -173,8 +175,6 @@ function makeComponent(node, action = 'make') {
 			clonedNode = node.clone()
 			node = clonedNode.detachInstance()
 		}
-
-		console.log('-----', node.name, component)
 
 		// Move children of clonedNode over to component
 		for (const child of node.children) {
@@ -243,12 +243,10 @@ function countSlots(nodes) {
 		}
 	}
 
-	console.log(countNumberSlots)
-
 	return countNumberSlots
 }
 
-function removeSlot(node, traverseChildren = true) {
+async function removeSlot(node, traverseChildren = true) {
 	const nodes = putValuesIntoArray(node)
 
 	for (let i = 0; i < nodes.length; i++) {
@@ -262,12 +260,12 @@ function removeSlot(node, traverseChildren = true) {
 		// TODO: Better if it removes from main component DONE
 
 		if (node.type === 'INSTANCE') {
-			// console.log(node.mainComponent.name.replace(/<slot>$/, ""))
 			let newName
-			newName = node.mainComponent.name.replace(/<slot>$/, '')
+			const mainComponent = await node.getMainComponentAsync()
+			newName = mainComponent.name.replace(/<slot>$/, '')
 			newName = newName.trim()
-			if (newName !== node.mainComponent.name) {
-				node.mainComponent.name = newName
+			if (newName !== mainComponent.name) {
+				mainComponent.name = newName
 			}
 
 			// node.mainComponent.name = node.mainComponent.name.replace(/<slot>$/, "")
@@ -283,7 +281,7 @@ function removeSlot(node, traverseChildren = true) {
 
 		if (traverseChildren) {
 			if (node.children) {
-				removeSlot(node.children)
+				await removeSlot(node.children)
 			}
 		}
 
@@ -295,99 +293,103 @@ function removeSlot(node, traverseChildren = true) {
 	return numberSlots
 }
 
-function editSlot(node) {
+async function editSlot(node) {
 	const nodes = putValuesIntoArray(node)
+	let nSlotsFound = 0
 
 	for (let i = 0; i < nodes.length; i++) {
-		const node = nodes[i]
+		const currentNode = nodes[i]
 
-		if (getPluginData(node, 'isSlot') && node.type === 'INSTANCE') {
-			// console.log(node.name)
-
+		if (
+			getPluginData(currentNode, 'isSlot') &&
+			currentNode.type === 'INSTANCE'
+		) {
 			nSlotsFound += 1
 
-			// node.name.endsWith('<slot>') && node.type === "INSTANCE"
+			// Store the node properties
+			const nodeOpacity = currentNode.opacity
+			const nodeLayoutAlign = currentNode.layoutAlign
+			const nodePrimaryAxisSizingMode = currentNode.primaryAxisSizingMode
+			const nodeCounterAxisSizingMode = currentNode.counterAxisSizingMode
+			const origNodeVisible = currentNode.visible
 
-			const nodeOpacity = node.opacity
-			// const handle = figma.notify("Editing slots...", { timeout: 99999999999 })
-			const nodeLayoutAlign = node.layoutAlign
-			const nodePrimaryAxisSizingMode = node.primaryAxisSizingMode
-			const nodeCounterAxisSizingMode = node.counterAxisSizingMode
-			const origNodeVisible = node.visible
-
-			// Trouble with restoring existing main component is that it's not unique and will break in cases where creating instances with slots because it will change the main component of other instances as well. It does however work in the context of when one mastercomponent/instance is used for all other instances. How can you get this to work?
-			// var component = findComponentById(node.mainComponent.id)
-
-			// FIXME: Maybe instance is not the same node when new node is made
-			const { component } = makeComponent(node, 'edit')
-
-			// Set the visibility to hidden if the instance is hidden by default (ie don't show slot)
+			// Create the component
+			const { component } = makeComponent(currentNode, 'edit')
 			component.visible = origNodeVisible
 
-			// figma.viewport.scrollAndZoomIntoView(component)
-
-			if (selectionSet === false) {
-				// console.log("Selection set")
+			// Ensure selection is set only once
+			if (!selectionSet) {
 				figma.currentPage.selection = []
 				selectionSet = true
 			}
 
-			if (figma.getNodeById(component.id)) {
+			// Check if component exists and append
+			const componentNode = await figma.getNodeByIdAsync(component.id)
+			if (componentNode) {
 				figma.currentPage.appendChild(component)
 			}
 
-			setPosition(node, component)
+			setPosition(currentNode, component)
 
-			setInterval(() => {
-				// If component removed by user, then hide the instance
+			// Periodically update component properties
+			setInterval(async () => {
 				if (component.parent === null) {
-					// Keep getting error message when changing node visibility
-					node.visible = false
+					currentNode.visible = false
 				}
 
-				// FIXME: positioning
-				setPosition(node, component)
-				if (
-					figma.getNodeById(node.id) &&
-					figma.getNodeById(component.id)
-				) {
-					component.resize(node.width, node.height)
+				setPosition(currentNode, component)
+
+				const currentNodeRef = await figma.getNodeByIdAsync(
+					currentNode.id,
+				)
+				const componentRef = await figma.getNodeByIdAsync(component.id)
+
+				if (currentNodeRef && componentRef) {
+					component.resize(currentNode.width, currentNode.height)
 					component.layoutAlign = nodeLayoutAlign
 					component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
 					component.counterAxisSizingMode = nodeCounterAxisSizingMode
 				}
 			}, 100)
 
-			if (figma.getNodeById(node.id)) {
-				node.opacity = 0
-			}
+			// Prepare nodes for the close event
+			const originalNode = await figma.getNodeByIdAsync(currentNode.id)
+			const freshComponent = await findComponentById(component.id)
 
+			// Resolve all original selection nodes
+			const originalSelectionNodes = await Promise.all(
+				origSel.map((sel) => figma.getNodeByIdAsync(sel.id)),
+			)
+
+			// Set up the close event handler
 			figma.on('close', () => {
-				if (figma.getNodeById(node.id)) {
-					node.opacity = nodeOpacity
-					// Probably not needed now that they are applied when resized at set interval
-					// component.layoutAlign = nodeLayoutAlign
-					// component.primaryAxisSizingMode = nodePrimaryAxisSizingMode
+				// Restore node opacity if it exists
+				if (originalNode) {
+					originalNode.opacity = nodeOpacity
 				}
 
-				// Need to find component because user may have deleted/undone it
-				const freshComponent = findComponentById(component.id)
-				if (freshComponent && freshComponent?.parent !== null) {
-					if (node.type !== 'COMPONENT') {
+				// Remove the component if it exists and is not a component type
+				if (
+					freshComponent &&
+					freshComponent.parent !== null &&
+					currentNode.type !== 'COMPONENT'
+				) {
+					try {
 						freshComponent.remove()
+					} catch (error) {
+						console.error('Failed to remove component:', error)
 					}
 				}
 
-				// FIXME: needs some work. Should loop through each node in original selection to see if they still exist
-				if (figma.getNodeById(origSel[0].id)) {
-					if (node.type !== 'COMPONENT') {
-						figma.currentPage.selection = origSel
-					}
+				// Restore original selection if nodes are still valid
+				const validSelection = originalSelectionNodes.filter(Boolean)
+				if (validSelection.length) {
+					figma.currentPage.selection = validSelection
 				}
 			})
 		} else {
-			if (node.children) {
-				editSlot(node.children)
+			if (currentNode.children) {
+				await editSlot(currentNode.children)
 			}
 		}
 	}
@@ -397,24 +399,26 @@ function editSlot(node) {
 
 console.clear()
 
-export default function () {
+export default async function () {
 	if (figma.command === 'makeSlot') {
 		const sel = figma.currentPage.selection
+		const numberCurrentSlots = countSlots(sel)
 		let numberSlotsMade = 0
 
-		if (countSlots(sel) > 1) {
-			figma.closePlugin(`Already contains ${numberSlots} slots`)
-		} else if (numberSlots === 1) {
-			figma.closePlugin(`Already contains ${numberSlots} slot`)
-		} else {
-			for (let i = 0; i < sel.length; i++) {
-				const node = sel[i]
-
+		for (let i = 0; i < sel.length; i++) {
+			const node = sel[i]
+			if (node.type === 'COMPONENT') {
+				figma.notify('Slot must be inside a component')
+			} else if (numberCurrentSlots > 1) {
+				figma.closePlugin(
+					`Already contains ${numberCurrentSlots} slots`,
+				)
+			} else if (numberCurrentSlots === 1) {
+				figma.closePlugin(`Already contains ${numberCurrentSlots} slot`)
+			} else {
 				// Cannot make when part of an instance and part of component
-				const isAwkward = isPartOfInstance(node)
-
 				if (getPluginData(node, 'isSlot') !== true) {
-					if (!isAwkward && isPartOfComponent(node)) {
+					if (!isPartOfInstance(node) && isPartOfComponent(node)) {
 						const parentComponent = getComponentParent(node)
 
 						if (parentComponent) {
@@ -440,7 +444,7 @@ export default function () {
 
 						numberSlotsMade += 1
 					} else {
-						if (isAwkward) {
+						if (isPartOfInstance(node)) {
 							figma.notify('Edit main component to make slot')
 						} else {
 							figma.notify('Slot must be inside a component')
@@ -450,14 +454,14 @@ export default function () {
 					figma.notify('Already a slot')
 				}
 			}
+		}
 
-			if (numberSlotsMade > 1) {
-				figma.currentPage.selection = newSel
-				figma.notify(`${numberSlotsMade} slots made`)
-			} else if (numberSlotsMade === 1) {
-				figma.currentPage.selection = newSel
-				figma.notify(`${numberSlotsMade} slot made`)
-			}
+		if (numberSlotsMade > 1) {
+			figma.currentPage.selection = newSel
+			figma.notify(`${numberSlotsMade} slots made`)
+		} else if (numberSlotsMade === 1) {
+			figma.currentPage.selection = newSel
+			figma.notify(`${numberSlotsMade} slot made`)
 		}
 
 		figma.closePlugin()
@@ -494,7 +498,7 @@ export default function () {
 	}
 
 	if (figma.command === 'removeSlot') {
-		const nSlotsRemoved = removeSlot(figma.currentPage.selection)
+		const nSlotsRemoved = await removeSlot(figma.currentPage.selection)
 
 		// Check remaining slots and if none then remove relaunch data from parent component
 		for (let i = 0; i < figma.currentPage.selection.length; i++) {
@@ -505,14 +509,9 @@ export default function () {
 			if (parent) {
 				const count = countSlots([parent])
 
-				// if (node.id !== parentComponent?.id) {
-				// 	node.setRelaunchData({})
-
-				// 	console.log(count)
 				if (count < 1) {
 					parent.setRelaunchData({})
 				}
-				// }
 			}
 		}
 

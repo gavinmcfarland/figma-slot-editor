@@ -34,6 +34,7 @@
 			"id": "1017768834174399811",
 			"api": "1.0.0",
 			"main": "src/main.ts",
+			"documentAccess": "dynamic-page",
 			"editorType": [
 				"figma"
 			],
