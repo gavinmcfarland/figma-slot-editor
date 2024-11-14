@@ -1,22 +1,12 @@
-// TODO: Add a warning if selection contains slots? DONE
-
-// FIXME: When no selection when editing DONE
-// FIXME: When no slots when editing DONE
 // FIXME: When trying to turn something inside instances into slot NOT NEEDED
-// FIXME: Enable editing more than one instance at a time DONE
-// FIXME: Stops editing after first go DONE
 
 // TODO: Disable making slot when part of instance inside a component
 // TODO: Only allow making slots on frames and top level instances inside of components? NO
-// TODO: Detect if slot already made DONE
-// TODO: Let plugin work even when instance deleted DONE
 
-// TODO: Do unit tests again
 // TODO: Check if happy with way selection works
 // FIXME: Give warning to user when trying to edit slot which has been detached
 // TODO: Hide grids on instances when editing and lock them?
 // TODO: Check if mainComponent deleted and if so, remove instance DONE/ERROR can't fix
-// FIXME: If slots are invisible then don't show when editing? DONE
 
 import { setPluginData, copyPaste } from '@figlets/helpers'
 

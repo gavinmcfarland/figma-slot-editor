@@ -26,14 +26,6 @@ This plugin was created with [Plugma](https://github.com/gavinmcfarland/plugma) 
 
 3. Manage `manifest` details from inside `package.json`.
 
-### Browser Preview
-
-Run this command to preview your plugin in the browser during development.
-
-```bash
-npm run preview
-```
-
 _Make sure the plugin is open in the Figma desktop app._
 
 ### Before Publishing
