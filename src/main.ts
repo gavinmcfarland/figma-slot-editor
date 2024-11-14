@@ -412,7 +412,7 @@ export default async function () {
 
 		for (let i = 0; i < sel.length; i++) {
 			const node = sel[i]
-			if (node.type === 'COMPONENT') {
+			if (!isPartOfComponent(node)) {
 				figma.notify('Slot must be inside a component')
 			} else if (numberCurrentSlots > 1) {
 				figma.closePlugin(
