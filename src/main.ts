@@ -16,6 +16,7 @@ const newSel = []
 let selectionSet = false
 let countNumberSlots = 0
 let numberSlots = 0
+let nSlotsFound = 0
 
 function putValuesIntoArray(value) {
 	return Array.isArray(value) ? value : [value]
@@ -49,11 +50,14 @@ const isPageNode = (node: BaseNode): node is PageNode => {
 	return node.type === 'PAGE'
 }
 
-const getTopLevelParent = (node: BaseNode): BaseNode => {
+const getTopLevelParent = (node: SceneNode | BaseNode): SceneNode => {
 	if (node && node.parent && !isPageNode(node.parent)) {
 		return getTopLevelParent(node.parent)
+	} else if (node.type !== 'PAGE' && 'x' in node && 'y' in node) {
+		// Ensure node has `x` and `y` properties, making it safe to return as a `SceneNode`
+		return node as SceneNode
 	} else {
-		return node
+		throw new Error('The top-level parent is not a SceneNode')
 	}
 }
 
@@ -295,7 +299,6 @@ async function removeSlot(node, traverseChildren = true) {
 
 async function editSlot(node) {
 	const nodes = putValuesIntoArray(node)
-	let nSlotsFound = 0
 
 	for (let i = 0; i < nodes.length; i++) {
 		const currentNode = nodes[i]
@@ -364,7 +367,7 @@ async function editSlot(node) {
 			// Set up the close event handler
 			figma.on('close', () => {
 				// Restore node opacity if it exists
-				if (originalNode) {
+				if (originalNode && 'opacity' in originalNode) {
 					originalNode.opacity = nodeOpacity
 				}
 
@@ -382,7 +385,9 @@ async function editSlot(node) {
 				}
 
 				// Restore original selection if nodes are still valid
-				const validSelection = originalSelectionNodes.filter(Boolean)
+				const validSelection = originalSelectionNodes.filter(
+					(node): node is SceneNode => node && node.type !== 'PAGE',
+				)
 				if (validSelection.length) {
 					figma.currentPage.selection = validSelection
 				}
@@ -481,7 +486,7 @@ export default async function () {
 				},
 				timeout: 99999999999,
 			})
-			const nSlotsFound = editSlot(sel)
+			const nSlotsFound = await editSlot(sel)
 
 			if (nSlotsFound > 0) {
 				figma.on('close', () => {
